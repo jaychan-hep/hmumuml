@@ -9,8 +9,8 @@ MonoHbbML is a package that can be used to study the XGBoost technique in Mono-H
 First checkout the code:
 
 ```
-git clone ssh://git@gitlab.cern.ch:7999/wisc_atlas/MonoHbbML.git [-b your_branch]
-cd MonoHbbML
+git clone ssh://git@gitlab.cern.ch:7999/wisc_atlas/hmumuml.git [-b your_branch]
+cd HmumuML
 ```
 
 Then, setup the virtualenv:
@@ -40,18 +40,6 @@ After setting up the environment for the first time, you can return to this setu
 
 ## Scripts to run the tasks
 
-### Check if the input files are complete
-
-Before starting processing the arrays and all of the training analysis, it would be good to first check the completeness of the input ntuples. To do this, first setup rucio,
-
-```
-lsetup rucio
-voms-proxy-init -voms atlas
-```
-and do `python checkinput.py`.
-
-This script is no longer applicable as some files have been moved to other folders.
-
 ### Producing training inputs and reduced root-files which the trained model will be applied to
 
 The core script is `process_arrays.py`. The script will apply the given preselection cuts to input samples and produce corresponding ntuples, numpy arrays files, and a text file containing the information of averaged weight of the sample. You can directly run it for any specified input files. Since there are too many samples in Mono-H(bb), it is more convinient and time-efficient to use `SubmitProcessArrays.py` which will find all of the input files and run the core script by submitting the condor jobs.
@@ -65,12 +53,11 @@ or
 python process_arrays.py [-n INPUT_FILE_NAME] [-r REGION] [-v] [-t] [-c CATEGORY]
 
 Note:
-  -n, --name          The name of the input files containers. The mother folder ('inputs/') should not be included in the name. 
-e.g. group.phys-exotics.mc16_13TeV.364222.Znunu_Sh221_PTV.0L0700a0.EXOT24.e5626_e5984_s3126_r9364_r9315_p3563_XAMPP/group.phys-exotics.14337810.XAMPP._000001.root
-  -r, --region        The region of interest. 'm' for merged region. 'r_350_500' for the first resolved region. 'r_200_350' for the second resolved. 'r_150_200' for the last resolved.
+  -n, --name          The name of the input root-file. The mother folder ('inputs/') shall not be included in the name. 
+  -r, --region        The region of interest. Choices: 'zero_jet', 'one_jet', or 'two_jet'.
   -v, --val           Do validation sample.
   -t, --train         Do training sample.
-  -c, --category      Define the category that the input sample belongs to. This will put the output files of every sample that has the sample category into the same container.
+  -c, --category      Define the category that the input sample belongs to. This will put the output files with the same category into the same container.
 ```
 
 ### Check if the training inpnuts and reduced root-files are complete
@@ -100,23 +87,18 @@ Update: Now the later scripts are able to automatically call the recovering scri
 
 ### Start XGBoost analysis!
 
-The whole ML task consists of training, applying the weights, plotting BDT distribution, optimizing the BDT boundaries for categorization, and calculating the number counting significances. `doTrain.py` will do everything for you, with assuming same signal model used for training and optimizing the categorization. Please note that `doTrain.py` only works for single trainged signal point and will only optimize the BDT boundaries using the same signal point. You have to run the following scripts separately to customze your training methods instead of simply running `doTrain.py`. 
+The whole ML task consists of training, applying the weights, plotting BDT distribution, optimizing the BDT boundaries for categorization, and calculating the number counting significances.
 
-```
-python doTrain.py [-r REGION] [-m mZP mA]
-
-```
 #### Training a model
 
-Now the codes in master branch work for multiple trained signals as well!
 ```
-python train_bdt.py [-r REGION] [-m mZP_1 mA_1 mZP_2 mA_2 ...] [--save]
+python train_bdt.py [-r REGION] [--save]
 ```
 #### Applying the weights
 
 Applying the trained model to the reduced ntuples to get BDT scores for each event can be done by doing:
 ```
-python applyBDTWeight.py [-r REGION] [-m mZP_1 mA_1 mZP_2 mA_2 ...]
+python applyBDTWeight.py [-r REGION]
 ```
 #### Plotting BDT distribution
 `plot_score.py` will plot the BDT distribution for backgrounds and signal using their validation samples.
@@ -130,7 +112,7 @@ Note:
 
 Currently, one can only optimize the boundaries using one single signal point. The script in the master branch will get rid of leftmost bin (most background like) and output the best three BDT boundaries with which the combined significance of the target siganl is largest. Please checkout to branch full_cat if you want to also include the leftmost bin.
 ```
-python categorization.py [-r REGION] [-m Train_Model_mZP_1 Train_Model_mA_1 Train_Model_mZP_2 Train_Model_mA_2 ...] [-s Target_Signal_mZP Target_Signal_mA]
+python categorization.py [-r REGION] 
 ```
 #### Getting the significance using customized BDT boundaries
 

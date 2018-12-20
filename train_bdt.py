@@ -30,6 +30,7 @@ def getArgs():
     parser.add_argument('-p', '--params', action='store', type=dict, default=None, help='json string.') #type=json.loads
     parser.add_argument('--numRound', action='store', type=int, default=10000, help='Number of rounds.')
     parser.add_argument('--save', action='store_true', help='Save model weights to HDF5 file')
+    parser.add_argument('--sf',type=float,default=1.,help='Scale factor of signal to make the signal and background effectively same in size.')
     return parser.parse_args()
 
 def signal_multiplier(s):
@@ -162,12 +163,11 @@ def train_model(params, args, region, sigs, bkgs):
     y_train_cat = np.concatenate((np.zeros(len(train_sig), dtype=np.uint8), np.ones(len(train_bkg), dtype=np.uint8)))
     y_val_cat   = np.concatenate((np.zeros(len(val_sig)  , dtype=np.uint8), np.ones(len(val_bkg)  , dtype=np.uint8)))
 
-    #weight_SF=5800000
-    #weight_SF=1
-    y_train_weight = np.concatenate((train_sig_wt/np.average(train_sig_wt), train_bkg_wt/np.average(train_bkg_wt)*len(train_sig_wt)/len(train_bkg_wt)))
-    y_val_weight   = np.concatenate((val_sig_wt/np.average(train_sig_wt), val_bkg_wt/np.average(train_bkg_wt)*len(train_sig_wt)/len(train_bkg_wt)))
-    #y_train_weight = weight_SF * np.concatenate((np.ones(len(train_sig), dtype=np.uint8), np.ones(len(train_bkg), dtype=np.uint8)))
-    #y_val_weight = weight_SF * np.concatenate((np.ones(len(val_sig)  , dtype=np.uint8), np.ones(len(val_bkg)  , dtype=np.uint8)))
+    SF=args.sf
+    if SF == -1: SF = 1.*len(train_sig_wt)/len(train_bkg_wt)
+
+    y_train_weight = np.concatenate((train_sig_wt*(len(train_sig_wt)+len(train_bkg_wt))*SF/(np.average(train_sig_wt)*(1+SF)*len(train_sig_wt)), train_bkg_wt*(len(train_sig_wt)+len(train_bkg_wt))/(np.average(train_bkg_wt)*(1+SF)*len(train_bkg_wt))))
+    y_val_weight   = np.concatenate((val_sig_wt*(len(train_sig_wt)+len(train_bkg_wt))*SF/(np.average(train_sig_wt)*(1+SF)*len(train_sig_wt)), val_bkg_wt*(len(train_sig_wt)+len(train_bkg_wt))/(np.average(train_bkg_wt)*(1+SF)*len(train_bkg_wt))))
 
     dTrain = xgb.DMatrix(train, label=y_train_cat, weight=y_train_weight)
     dVal = xgb.DMatrix(val, label=y_val_cat, weight=y_val_weight)
@@ -236,7 +236,7 @@ def main():
     
 
     print '=============================================================================='
-    sigs=['VBF'] #ggF
+    sigs=['VBF']#, 'ggF']
     
     print 'INFO:  Training as signal on:  ', sigs
 
