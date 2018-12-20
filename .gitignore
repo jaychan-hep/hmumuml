@@ -1,0 +1,7 @@
+AppInputs/
+arrays/
+*.cc
+condor/
+outputs/
+significances/
+ve/
