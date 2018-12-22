@@ -78,7 +78,9 @@ def arrange_samplelist(channel,category,inputdir):
         elif ".root" not in filename:
             continue
         else:
-            samples.append("%s %s"% (filename,category))
+            for section in ['t', 'v', 'none']:
+                for region in ['zero_jet', 'one_jet', 'two_jet']:
+                    samples.append("%s %s %s %s"% (filename,category,section,region))
     return samples
 
 def main():

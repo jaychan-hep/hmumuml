@@ -236,7 +236,7 @@ def main():
     
 
     print '=============================================================================='
-    sigs=['VBF']#, 'ggF']
+    sigs=['VBF', 'ggF']
     
     print 'INFO:  Training as signal on:  ', sigs
 

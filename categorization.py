@@ -21,14 +21,10 @@ def getArgs():
     """Get arguments from command line."""
     parser = ArgumentParser()
     parser.add_argument('-r', '--region', action='store', choices=['two_jet', 'one_jet', 'zero_jet'], default='zero_jet', help='Region to process')
-    #parser.add_argument('-m','--masspoint', type=int, nargs='*', default=[2600,300], help='Masspoint of training ZP2HDM model samples.')
-    #parser.add_argument('-s','--signalmasspoint',type=int,nargs=2,default=[2600,300],help='Masspoint of specified signal model mass point of ZP2HDM.')
     parser.add_argument('-n','--nscan',type=int,default=100,help='number of scan.')
-    parser.add_argument('--name',action='store',default='baseline_yields',help='Name of the yields.')
-    #parser.add_argument('-l','--lumi',type=float,default=79.8, help='The integrated luminosit to be normalized to.') a->36.1 d->43.7
     return  parser.parse_args()
 
-def calc_sig(sig,bkg,w_sig,w_bkg,d_sig,d_bkg):
+def calc_sig(sig,bkg,d_sig,d_bkg):
 
   ntot = sig + bkg
 
@@ -53,58 +49,17 @@ def hist_integral(hist,i,j):
     else: n = hist.Integral(i,j)
     return n
 
-def GetSigmas(inDict, inFile):
-    
-    BRHbb=0.571
-
-    fin = open(inFile,"r")
-    lines = fin.readlines()
-    
-    #print lines
-    
-    for line in lines:
-        if line[0]=="#":
-            continue
-        
-        mzp   = line.split()[1]
-        ma    = line.split()[2]
-        sigma = float(line.split()[5])
-        
-        #print "read : ",mzp,ma,sigma
-
-        inDict[mzp+","+ma]=float(sigma)*BRHbb
-        #inDict[mzp+","+ma]=1.
-    
-    return inDict
-
-def gettingsig(train_sig,region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,nscan, targetsig, yieldname, CrossSections):#, lumi):
+def gettingsig(region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,nscan):
 
     print 'Evaluating significances for all of the signal models...'
-
-    #baselinetxt=open('yields/%s.txt'%(yieldname),'r')
-    #baseline_yield={}
-    #lines = baselinetxt.read().splitlines()
-    #if region=='ttH': index=4
-    #elif region=='VH': index=3
-    #elif region=='VBF': index=2
-    #else: index=1
-    #for line in lines:
-    #    if line.startswith('#'): continue
-    #    if line=='':continue
-    #    if line.startswith('-'): continue
-    #    baseline_yield[line.split()[0]]=float(line.split()[index])
 
     var='m_mumu'
   
     if not os.path.isdir('significances'):
         print 'INFO: Creating output folder: \"significances\"'
         os.makedirs("significances")
-    if not os.path.isdir('significances/model_%s%s' % (train_sig,region)):
-        print 'INFO: Creating new model folder:  model_%s%s' % (train_sig,region)
-        os.makedirs('significances/model_%s%s' % (train_sig,region))
-    
 
-    txt=open('significances/model_%s%s/targetsig_%s.txt' % (train_sig,region,targetsig), 'w')
+    txt=open('significances/%s.txt' % (region), 'w')
     txt.write('#nscan: %d\n'%nscan)
     txt.write('#hmax: %d\n'%hmax)
     txt.write('#imax: %d\n'%imax)
@@ -123,7 +78,7 @@ def gettingsig(train_sig,region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,ns
     #txt.write('#Signal_Model    Significance_after_BDT  Uncertainty_after_BDT   Baseline_Significance   Baseline_Uncertainty    Percentage_improvement\n')
     txt.write('_______________________________________________________________________________________________________________________________________\n\n')
 
-    f_bkg = ROOT.TFile('outputs/model_%s%s/bkg.root' % (train_sig,region))
+    f_bkg = ROOT.TFile('outputs/model_%s/bkg.root' % (region))
     t_bkg = f_bkg.Get('test')
     h_bkg = ROOT.TH1F('h_bkg','h_bkg',nscan,0.,1.)
     h_bkg.Sumw2()
@@ -155,12 +110,11 @@ def gettingsig(train_sig,region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,ns
     else: nbkg8=h_bkg.IntegralAndError(nmax,nscan,d_bkg8)
     #nbkg=baseline_yield['bkg_tot']
 
-    f_sig = ROOT.TFile('outputs/model_%s%s/sig.root' % (train_sig,region))
+    f_sig = ROOT.TFile('outputs/model_%s/sig.root' % (region))
     t_sig = f_sig.Get('test')
     h_sig = ROOT.TH1F('h_sig','h_sig',nscan,0.,1.)
     h_sig.Sumw2()
     t_sig.Draw("bdt_score>>h_sig","weight*1*(%s>=120&&%s<=130&&eventNumber%%2>=0)"%(var,var))
-    w_sig=5
     nsig1=hist_integral(h_sig,1,hmax-1)
     nsig2=hist_integral(h_sig,hmax,imax-1)
     nsig3=hist_integral(h_sig,imax,jmax-1)
@@ -182,14 +136,14 @@ def gettingsig(train_sig,region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,ns
     #nbkg4=nbkg4*764530./769468.
     #nbkg5=nbkg5*764530./769468.
 
-    s1,u1=calc_sig(nsig1,nbkg1,w_sig,w_bkg,0,d_bkg1)
-    s2,u2=calc_sig(nsig2,nbkg2,w_sig,w_bkg,0,d_bkg2) 
-    s3,u3=calc_sig(nsig3,nbkg3,w_sig,w_bkg,0,d_bkg3)
-    s4,u4=calc_sig(nsig4,nbkg4,w_sig,w_bkg,0,d_bkg4)
-    s5,u5=calc_sig(nsig5,nbkg5,w_sig,w_bkg,0,d_bkg5)
-    s6,u6=calc_sig(nsig6,nbkg6,w_sig,w_bkg,0,d_bkg6)
-    s7,u7=calc_sig(nsig7,nbkg7,w_sig,w_bkg,0,d_bkg7)
-    s8,u8=calc_sig(nsig8,nbkg8,w_sig,w_bkg,0,d_bkg8)
+    s1,u1=calc_sig(nsig1,nbkg1,0,d_bkg1)
+    s2,u2=calc_sig(nsig2,nbkg2,0,d_bkg2) 
+    s3,u3=calc_sig(nsig3,nbkg3,0,d_bkg3)
+    s4,u4=calc_sig(nsig4,nbkg4,0,d_bkg4)
+    s5,u5=calc_sig(nsig5,nbkg5,0,d_bkg5)
+    s6,u6=calc_sig(nsig6,nbkg6,0,d_bkg6)
+    s7,u7=calc_sig(nsig7,nbkg7,0,d_bkg7)
+    s8,u8=calc_sig(nsig8,nbkg8,0,d_bkg8)
     s=sqrt(s1**2+s2**2+s3**2+s4**2+s5**2+s6**2+s7**2+s8**2)
     u=sqrt((s1*u1)**2+(s2*u2)**2+(s3*u3)**2+(s4*u4)**2+(s5*u5)**2+(s6*u6)**2+(s7*u7)**2+(s8*u8)**2)/s
     #nsig=baseline_yield[sig]*CrossSections[sig.replace('zp2hdmbbmzp','').replace('mA',',')]
@@ -198,28 +152,27 @@ def gettingsig(train_sig,region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,ns
        
     #print 'Significance of %s:  %f +- %f         Baseline significance:  %f +- %f        Imporvement: %f %%'%(sig,s,abs(u),s0,abs(u0),(s-s0)/s0*100 if s0 !=0 else 0)
     #txt.write('%s  %f  %f  %f  %f  %f\n'%(sig,s,abs(u),s0,abs(u0),(s-s0)/s0*100 if s0 !=0 else 0))
-    print 'Significance of %s:  %f +- %f'%(targetsig,s,abs(u))
-    txt.write('%s  %f  %f\n'%(targetsig,s,abs(u)))
+    print 'Significance:  %f +- %f'%(s,abs(u))
+    txt.write('%f  %f\n'%(s,abs(u)))
 
 
-def categorizing(train_sig,region,targetsig,sigs,bkgs,nscan, CrossSections):#, lumi):
+def categorizing(region,sigs,bkgs,nscan):
 
-    #xs=CrossSections[targetsig.replace('zp2hdmbbmzp','').replace('mA',',')]
     siglist=''
     for sig in sigs:
-        if os.path.isfile('outputs/model_%s%s/%s.root'% (train_sig,region,sig)): siglist+=' outputs/model_%s%s/%s.root'% (train_sig,region,sig)
-    os.system("hadd -f outputs/model_%s%s/sig.root"%(train_sig,region)+siglist)
+        if os.path.isfile('outputs/model_%s/%s.root'% (region,sig)): siglist+=' outputs/model_%s/%s.root'% (region,sig)
+    os.system("hadd -f outputs/model_%s/sig.root"%(region)+siglist)
 
-    f_sig = ROOT.TFile('outputs/model_%s%s/sig.root' % (train_sig,region))
+    f_sig = ROOT.TFile('outputs/model_%s/sig.root' % (region))
     t_sig = f_sig.Get('test')
 
     #if not os.path.isfile('outputs/model_%s_%s/bkg.root' % (train_sig,region)):
     bkglist=''
     for bkg in bkgs:
-        if os.path.isfile('outputs/model_%s%s/%s.root'% (train_sig,region,bkg)): bkglist+=' outputs/model_%s%s/%s.root'% (train_sig,region,bkg)
-    os.system("hadd -f outputs/model_%s%s/bkg.root"%(train_sig,region)+bkglist)
+        if os.path.isfile('outputs/model_%s/%s.root'% (region,bkg)): bkglist+=' outputs/model_%s/%s.root'% (region,bkg)
+    os.system("hadd -f outputs/model_%s/bkg.root"%(region)+bkglist)
    
-    f_bkg = ROOT.TFile('outputs/model_%s%s/bkg.root' % (train_sig,region))
+    f_bkg = ROOT.TFile('outputs/model_%s/bkg.root' % (region))
     t_bkg = f_bkg.Get('test')
 
     h_sig=ROOT.TH1F('h_sig','h_sig',nscan,0,1)
@@ -232,9 +185,7 @@ def categorizing(train_sig,region,targetsig,sigs,bkgs,nscan, CrossSections):#, l
     var='m_mumu'
 
     t_sig.Draw("bdt_score>>h_sig","weight*1*((%s>=120&&%s<=130)&&(eventNumber%%2>=0))"%(var,var))
-    w_sig=5
     t_bkg.Draw("bdt_score>>h_bkg","weight*1*(235005./769468.)*((%s>=110&&%s<=160)&&!(%s>=120&&%s<=130)&&(eventNumber%%2>=0))"%(var,var,var,var))
-    w_bkg=5
 
     hmax=0
     imax=0
@@ -310,25 +261,25 @@ def categorizing(train_sig,region,targetsig,sigs,bkgs,nscan, CrossSections):#, l
                     d_bkg4=ROOT.Double(0)
                     if (j>k-1): nbkg4=0
                     else: nbkg4=h_bkg.IntegralAndError(j,k-1,d_bkg4)
-                    s4,u4=calc_sig(nsig4,nbkg4,w_sig,w_bkg,0,d_bkg4)
+                    s4,u4=calc_sig(nsig4,nbkg4,0,d_bkg4)
                     if nbkg4<2: s4,u4=0,0
                     nsig3=hist_integral(h_sig,i,j-1)
                     d_bkg3=ROOT.Double(0)
                     if (i>j-1): nbkg3=0
                     else: nbkg3=h_bkg.IntegralAndError(i,j-1,d_bkg3)
-                    s3,u3=calc_sig(nsig3,nbkg3,w_sig,w_bkg,0,d_bkg3)
+                    s3,u3=calc_sig(nsig3,nbkg3,0,d_bkg3)
                     if nbkg3<2: s3,u3=0,0
                     nsig2=hist_integral(h_sig,h,i-1)
                     d_bkg2=ROOT.Double(0)
                     if (h>i-1): nbkg2=0
                     else: nbkg2=h_bkg.IntegralAndError(h,i-1,d_bkg2)
-                    s2,u2=calc_sig(nsig2,nbkg2,w_sig,w_bkg,0,d_bkg2)
+                    s2,u2=calc_sig(nsig2,nbkg2,0,d_bkg2)
                     if nbkg2<2: s2,u2=0,0
                     nsig1=hist_integral(h_sig,1,h-1)
                     d_bkg1=ROOT.Double(0)
                     if (1>h-1): nbkg1=0
                     else: nbkg1=h_bkg.IntegralAndError(1,h-1,d_bkg1)
-                    s1,u1=calc_sig(nsig1,nbkg1,w_sig,w_bkg,0,d_bkg1)
+                    s1,u1=calc_sig(nsig1,nbkg1,0,d_bkg1)
                     if nbkg1<2: s1,u1=0,0
                     s_low=sqrt(s1**2+s2**2+s3**2+s4**2)
                     if s_low>smax_low: 
@@ -356,25 +307,25 @@ def categorizing(train_sig,region,targetsig,sigs,bkgs,nscan, CrossSections):#, l
                     d_bkg5=ROOT.Double(0)
                     if (k>l-1): nbkg5=0
                     else: nbkg5=h_bkg.IntegralAndError(k,l-1,d_bkg5)
-                    s5,u5=calc_sig(nsig5,nbkg5,w_sig,w_bkg,0,d_bkg5)
+                    s5,u5=calc_sig(nsig5,nbkg5,0,d_bkg5)
                     if nbkg5<2: s5,u5=0,0
                     nsig6=hist_integral(h_sig,l,m-1)
                     d_bkg6=ROOT.Double(0)
                     if (l>m-1): nbkg6=0
                     else: nbkg6=h_bkg.IntegralAndError(l,m-1,d_bkg6)
-                    s6,u6=calc_sig(nsig6,nbkg6,w_sig,w_bkg,0,d_bkg6)
+                    s6,u6=calc_sig(nsig6,nbkg6,0,d_bkg6)
                     if nbkg6<2: s6,u6=0,0
                     nsig7=hist_integral(h_sig,m,n-1)
                     d_bkg7=ROOT.Double(0)
                     if (m>n-1): nbkg7=0
                     else: nbkg7=h_bkg.IntegralAndError(m,n-1,d_bkg7)
-                    s7,u7=calc_sig(nsig7,nbkg7,w_sig,w_bkg,0,d_bkg7)
+                    s7,u7=calc_sig(nsig7,nbkg7,0,d_bkg7)
                     if nbkg7<2: s7,u7=0,0
                     nsig8=hist_integral(h_sig,n,nscan)
                     d_bkg8=ROOT.Double(0)
                     if (n>nscan): nbkg8=0
                     else: nbkg8=h_bkg.IntegralAndError(n,nscan,d_bkg8)
-                    s8,u8=calc_sig(nsig8,nbkg8,w_sig,w_bkg,0,d_bkg8)
+                    s8,u8=calc_sig(nsig8,nbkg8,0,d_bkg8)
                     if nbkg8<2: s8,u8=0,0
                     s_high=sqrt(s5**2+s6**2+s7**2+s8**2)
                     if s_high>smax_high: 
@@ -447,13 +398,7 @@ def main():
 
     args=getArgs()
 
-    #lumi=args.lumi
-
-
     sigs = ['ggF','VBF','VH','ttH']
-
-    targetsig='Higgs'
-    train_sig=''
 
     bkgs = ['data']
 
@@ -470,15 +415,10 @@ def main():
     nscan=args.nscan
 
     CrossSections={}
-    #CrossSections = GetSigmas(CrossSections, "sigma_file_nominal.txt")
-    #CrossSections = GetSigmas(CrossSections, "sigma_FixedHiggsesTo300_08052017.txt")
-    #CrossSections = GetSigmas(CrossSections, "sigma_FixedHiggsesToMA_08052017.txt")
 
-    hmax, imax, jmax, kmax, lmax, mmax, nmax=categorizing(train_sig,region,targetsig,sigs,bkgs, nscan, CrossSections)#,lumi)
+    hmax, imax, jmax, kmax, lmax, mmax, nmax=categorizing(region,sigs,bkgs, nscan)
 
-    yieldname=args.name
-
-    gettingsig(train_sig,region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,nscan, targetsig, yieldname, CrossSections)#,lumi)
+    gettingsig(region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,nscan)
 
     return
 

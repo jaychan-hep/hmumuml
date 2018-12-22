@@ -56,6 +56,7 @@ def process_arrays(args):
     Muons_MCPExpReso_Smear_Minv_MuMu_Sigma = array('f', [0])
     Muons_MCPExpReso_Smear_Lead = array('f', [0])
     Muons_MCPExpReso_Smear_Sub = array('f', [0])
+    Muons_CosThetaStar = array('f', [0])
     
     njet = array('i',[0])
     njet_cen = array('i',[0])
@@ -87,12 +88,11 @@ def process_arrays(args):
     t.SetBranchAddress('Muons_Eta_Sub', Muons_Eta_Sub)
     t.SetBranchAddress('Muons_Phi_Lead', Muons_Phi_Lead)
     t.SetBranchAddress('Muons_Phi_Sub', Muons_Phi_Sub)
-    t.SetBranchAddress('Jets_DeltaEta_jj', Jets_DeltaEta_jj)
-    t.SetBranchAddress('Jets_DeltaR_jj', Jets_DeltaR_jj)
 
     t.SetBranchAddress('Muons_MCPExpReso_Smear_Minv_MuMu_Sigma', Muons_MCPExpReso_Smear_Minv_MuMu_Sigma)
     t.SetBranchAddress('Muons_MCPExpReso_Smear_Lead', Muons_MCPExpReso_Smear_Lead)
     t.SetBranchAddress('Muons_MCPExpReso_Smear_Sub', Muons_MCPExpReso_Smear_Sub)
+    t.SetBranchAddress('Muons_CosThetaStar', Muons_CosThetaStar)
 
     #t.SetBranchAddress('Jets_Multip', njet)
     t.SetBranchAddress('Jets_PT', Jets_Pt)
@@ -100,6 +100,8 @@ def process_arrays(args):
     t.SetBranchAddress('Jets_Eta', Jets_Eta)
     t.SetBranchAddress('Jets_Phi', Jets_Phi)
     t.SetBranchAddress('Jets_LowestPassedBTagOP', Jets_BTag)
+    t.SetBranchAddress('Jets_DeltaEta_jj', Jets_DeltaEta_jj)
+    t.SetBranchAddress('Jets_DeltaR_jj', Jets_DeltaR_jj)
 
     t.SetBranchAddress('Event_MET', metFinalTrk)
     t.SetBranchAddress('Event_MET_Phi', metFinalTrkPhi)
@@ -121,6 +123,7 @@ def process_arrays(args):
     t.SetBranchStatus('Muons_Eta_Sub', 1)
     t.SetBranchStatus('Muons_Phi_Lead', 1)
     t.SetBranchStatus('Muons_Phi_Sub', 1)
+    t.SetBranchStatus('Muons_CosThetaStar', 1)
 
     t.SetBranchStatus('Muons_MCPExpReso_Smear_Minv_MuMu_Sigma', 1)
     t.SetBranchStatus('Muons_MCPExpReso_Smear_Lead', 1)
@@ -132,6 +135,7 @@ def process_arrays(args):
     t.SetBranchStatus('Jets_Eta', 1)
     t.SetBranchStatus('Jets_Phi', 1)
     t.SetBranchStatus('Jets_LowestPassedBTagOP', 1)
+    t.SetBranchStatus('Jets_DeltaEta_jj', 1)
 
     t.SetBranchStatus('Event_MET', 1)
     t.SetBranchStatus('Event_MET_Phi', 1)
@@ -259,7 +263,7 @@ def process_arrays(args):
 
             # extras
             ee = []
-            ee.append([njet_cen[0], njet_fwd[0], nbjet[0], HT[0], Jets_DeltaEta_jj[0], Jets_DeltaR_jj[0]])
+            ee.append([njet_cen[0], njet_fwd[0], nbjet[0], HT[0], Muons_CosThetaStar[0], 0])
 
             # cuts
             if not (nbjet[0] == 0 and metFinalTrk[0] < 80): continue
