@@ -24,7 +24,7 @@ def getArgs():
     parser.add_argument('-n','--nscan',type=int,default=100,help='number of scan.')
     return  parser.parse_args()
 
-def calc_sig(sig,bkg,d_sig,d_bkg):
+def calc_sig(sig, bkg,s_err,b_err):
 
   ntot = sig + bkg
 
@@ -33,21 +33,38 @@ def calc_sig(sig,bkg,d_sig,d_bkg):
 
   #Counting experiment
   significance = sqrt(2*((ntot*log(ntot/bkg)) - sig))
+  #significance = sig / sqrt(bkg)
 
   #error on significance
-  numer = log(1+(sig/bkg)) - (sig/bkg)
-  #delta_b = sig/sqrt(sig/0.00001)
-  #if (isTest) delta_b = n_data/sqrt(n_data/(4./45.))
-  uncert = (numer/significance) * d_bkg
+  numer = sqrt((log(ntot/bkg)*s_err)**2 + ((log(1+(sig/bkg)) - (sig/bkg))*b_err)**2)
+  uncert = (numer/significance)
 
-  #safety feature to prevent low number of events
-  #if(n_data < 0.8) {significance = 0; uncert=0;}
   return significance, uncert
 
 def hist_integral(hist,i,j):
-    if i>j: n=0
-    else: n = hist.Integral(i,j)
-    return n
+    err = ROOT.Double()
+    if i>j:
+        n=0
+        err=0
+    else: n = hist.IntegralAndError(i,j,err)
+    return n, err
+
+def sum_hist_integral(integrals,xs=1):
+    err, n = 0, 0
+    for integral in integrals:
+        n += integral[0]
+        err += integral[1]**2
+    return n*xs, sqrt(err)*xs
+
+def sum_z(zs,us):
+    sumu=0
+    sumz=0
+    for i in range(len(zs)):
+        sumz+=zs[i]**2
+        sumu+=(zs[i]*us[i])**2
+    sumz=sqrt(sumz)
+    sumu=sqrt(sumu)/sumz if sumz != 0 else 0
+    return sumz,sumu
 
 def gettingsig(region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,nscan):
 
@@ -83,46 +100,28 @@ def gettingsig(region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,nscan):
     h_bkg = ROOT.TH1F('h_bkg','h_bkg',nscan,0.,1.)
     h_bkg.Sumw2()
     t_bkg.Draw("bdt_score>>h_bkg","weight*1*(235005./769468.)*((%s>=110&&%s<=160)&&!(%s>=120&&%s<=130)&&eventNumber%%2>=0)"%(var,var,var,var))
-    w_bkg=5
-    d_bkg1=ROOT.Double(0)
-    if (1>hmax-1): nbkg1=0
-    else: nbkg1=h_bkg.IntegralAndError(1,hmax-1,d_bkg1)
-    d_bkg2=ROOT.Double(0)
-    if (hmax>imax-1): nbkg2=0
-    else: nbkg2=h_bkg.IntegralAndError(hmax,imax-1,d_bkg2)
-    d_bkg3=ROOT.Double(0)
-    if (imax>jmax-1): nbkg3=0
-    else: nbkg3=h_bkg.IntegralAndError(imax,jmax-1,d_bkg3)
-    d_bkg4=ROOT.Double(0)
-    if (jmax>kmax-1): nbkg4=0
-    else: nbkg4=h_bkg.IntegralAndError(jmax,kmax-1,d_bkg4)
-    d_bkg5=ROOT.Double(0)
-    if (kmax>lmax-1): nbkg5=0
-    else: nbkg5=h_bkg.IntegralAndError(kmax,lmax-1,d_bkg5)
-    d_bkg6=ROOT.Double(0)
-    if (lmax>mmax-1): nbkg6=0
-    else: nbkg6=h_bkg.IntegralAndError(lmax,mmax-1,d_bkg6)
-    d_bkg7=ROOT.Double(0)
-    if (mmax>nmax-1): nbkg7=0
-    else: nbkg7=h_bkg.IntegralAndError(mmax,nmax-1,d_bkg7)
-    d_bkg8=ROOT.Double(0)
-    if (nmax>nscan): nbkg8=0
-    else: nbkg8=h_bkg.IntegralAndError(nmax,nscan,d_bkg8)
-    #nbkg=baseline_yield['bkg_tot']
+    nbkg1 ,dbkg1 = hist_integral(h_bkg, 1, hmax-1)
+    nbkg2 ,dbkg2 = hist_integral(h_bkg, hmax, imax-1)
+    nbkg3 ,dbkg3 = hist_integral(h_bkg, imax, jmax-1)
+    nbkg4 ,dbkg4 = hist_integral(h_bkg, jmax, kmax-1)
+    nbkg5 ,dbkg5 = hist_integral(h_bkg, kmax, lmax-1)
+    nbkg6 ,dbkg6 = hist_integral(h_bkg, lmax, mmax-1)
+    nbkg7 ,dbkg7 = hist_integral(h_bkg, mmax, nmax-1)
+    nbkg8 ,dbkg8 = hist_integral(h_bkg, nmax, nscan)
 
     f_sig = ROOT.TFile('outputs/model_%s/sig.root' % (region))
     t_sig = f_sig.Get('test')
     h_sig = ROOT.TH1F('h_sig','h_sig',nscan,0.,1.)
     h_sig.Sumw2()
     t_sig.Draw("bdt_score>>h_sig","weight*1*(%s>=120&&%s<=130&&eventNumber%%2>=0)"%(var,var))
-    nsig1=hist_integral(h_sig,1,hmax-1)
-    nsig2=hist_integral(h_sig,hmax,imax-1)
-    nsig3=hist_integral(h_sig,imax,jmax-1)
-    nsig4=hist_integral(h_sig,jmax,kmax-1)
-    nsig5=hist_integral(h_sig,kmax,lmax-1)
-    nsig6=hist_integral(h_sig,lmax,mmax-1)
-    nsig7=hist_integral(h_sig,mmax,nmax-1)
-    nsig8=hist_integral(h_sig,nmax,nscan)
+    nsig1, dsig1 = hist_integral(h_sig, 1, hmax-1)
+    nsig2, dsig2 = hist_integral(h_sig, hmax, imax-1)
+    nsig3, dsig3 = hist_integral(h_sig, imax, jmax-1)
+    nsig4, dsig4 = hist_integral(h_sig, jmax, kmax-1)
+    nsig5, dsig5 = hist_integral(h_sig, kmax, lmax-1)
+    nsig6, dsig6 = hist_integral(h_sig, lmax, mmax-1)
+    nsig7, dsig7 = hist_integral(h_sig, mmax, nmax-1)
+    nsig8, dsig8 = hist_integral(h_sig, nmax, nscan)
 
     #nsig1=nsig1*443.0/435.7
     #nsig2=nsig2*443.0/435.7
@@ -136,14 +135,14 @@ def gettingsig(region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,nscan):
     #nbkg4=nbkg4*764530./769468.
     #nbkg5=nbkg5*764530./769468.
 
-    s1,u1=calc_sig(nsig1,nbkg1,0,d_bkg1)
-    s2,u2=calc_sig(nsig2,nbkg2,0,d_bkg2) 
-    s3,u3=calc_sig(nsig3,nbkg3,0,d_bkg3)
-    s4,u4=calc_sig(nsig4,nbkg4,0,d_bkg4)
-    s5,u5=calc_sig(nsig5,nbkg5,0,d_bkg5)
-    s6,u6=calc_sig(nsig6,nbkg6,0,d_bkg6)
-    s7,u7=calc_sig(nsig7,nbkg7,0,d_bkg7)
-    s8,u8=calc_sig(nsig8,nbkg8,0,d_bkg8)
+    s1,u1=calc_sig(nsig1,nbkg1,dsig1,dbkg1)
+    s2,u2=calc_sig(nsig2,nbkg2,dsig2,dbkg2) 
+    s3,u3=calc_sig(nsig3,nbkg3,dsig3,dbkg3)
+    s4,u4=calc_sig(nsig4,nbkg4,dsig4,dbkg4)
+    s5,u5=calc_sig(nsig5,nbkg5,dsig5,dbkg5)
+    s6,u6=calc_sig(nsig6,nbkg6,dsig6,dbkg6)
+    s7,u7=calc_sig(nsig7,nbkg7,dsig7,dbkg7)
+    s8,u8=calc_sig(nsig8,nbkg8,dsig8,dbkg8)
     s=sqrt(s1**2+s2**2+s3**2+s4**2+s5**2+s6**2+s7**2+s8**2)
     u=sqrt((s1*u1)**2+(s2*u2)**2+(s3*u3)**2+(s4*u4)**2+(s5*u5)**2+(s6*u6)**2+(s7*u7)**2+(s8*u8)**2)/s
     #nsig=baseline_yield[sig]*CrossSections[sig.replace('zp2hdmbbmzp','').replace('mA',',')]
@@ -221,6 +220,7 @@ def categorizing(region,sigs,bkgs,nscan):
     smax=0
 
     for k in range(1,nscan+1):
+
         hmax_low=0
         imax_low=0
         jmax_low=0
@@ -254,97 +254,165 @@ def categorizing(region,sigs,bkgs,nscan):
         smax_low=0
         smax_high=0
 
-        for j in range(1,k+1):
-            for i in range(1,j+1):
-                for h in range(1,i+1):
-                    nsig4=hist_integral(h_sig,j,k-1)
-                    d_bkg4=ROOT.Double(0)
-                    if (j>k-1): nbkg4=0
-                    else: nbkg4=h_bkg.IntegralAndError(j,k-1,d_bkg4)
-                    s4,u4=calc_sig(nsig4,nbkg4,0,d_bkg4)
-                    if nbkg4<2: s4,u4=0,0
-                    nsig3=hist_integral(h_sig,i,j-1)
-                    d_bkg3=ROOT.Double(0)
-                    if (i>j-1): nbkg3=0
-                    else: nbkg3=h_bkg.IntegralAndError(i,j-1,d_bkg3)
-                    s3,u3=calc_sig(nsig3,nbkg3,0,d_bkg3)
-                    if nbkg3<2: s3,u3=0,0
-                    nsig2=hist_integral(h_sig,h,i-1)
-                    d_bkg2=ROOT.Double(0)
-                    if (h>i-1): nbkg2=0
-                    else: nbkg2=h_bkg.IntegralAndError(h,i-1,d_bkg2)
-                    s2,u2=calc_sig(nsig2,nbkg2,0,d_bkg2)
-                    if nbkg2<2: s2,u2=0,0
-                    nsig1=hist_integral(h_sig,1,h-1)
-                    d_bkg1=ROOT.Double(0)
-                    if (1>h-1): nbkg1=0
-                    else: nbkg1=h_bkg.IntegralAndError(1,h-1,d_bkg1)
-                    s1,u1=calc_sig(nsig1,nbkg1,0,d_bkg1)
-                    if nbkg1<2: s1,u1=0,0
-                    s_low=sqrt(s1**2+s2**2+s3**2+s4**2)
-                    if s_low>smax_low: 
-                        smax_low=s_low
-                        jmax_low=j
-                        imax_low=i
-                        hmax_low=h
-                        nsig4max_low=nsig4
-                        nbkg4max_low=nbkg4
-                        nsig3max_low=nsig3
-                        nbkg3max_low=nbkg3
-                        nsig2max_low=nsig2
-                        nbkg2max_low=nbkg2
-                        nsig1max_low=nsig1
-                        nbkg1max_low=nbkg1
-                        s4max_low=s4
-                        s3max_low=s3
-                        s2max_low=s2
-                        s1max_low=s1
+        for i in range(1,k+1):
 
-        for l in range(k,nscan+1):
-            for m in range(l,nscan+1):
-                for n in range(m,nscan+1):
-                    nsig5=hist_integral(h_sig,k,l-1)
-                    d_bkg5=ROOT.Double(0)
-                    if (k>l-1): nbkg5=0
-                    else: nbkg5=h_bkg.IntegralAndError(k,l-1,d_bkg5)
-                    s5,u5=calc_sig(nsig5,nbkg5,0,d_bkg5)
-                    if nbkg5<2: s5,u5=0,0
-                    nsig6=hist_integral(h_sig,l,m-1)
-                    d_bkg6=ROOT.Double(0)
-                    if (l>m-1): nbkg6=0
-                    else: nbkg6=h_bkg.IntegralAndError(l,m-1,d_bkg6)
-                    s6,u6=calc_sig(nsig6,nbkg6,0,d_bkg6)
-                    if nbkg6<2: s6,u6=0,0
-                    nsig7=hist_integral(h_sig,m,n-1)
-                    d_bkg7=ROOT.Double(0)
-                    if (m>n-1): nbkg7=0
-                    else: nbkg7=h_bkg.IntegralAndError(m,n-1,d_bkg7)
-                    s7,u7=calc_sig(nsig7,nbkg7,0,d_bkg7)
-                    if nbkg7<2: s7,u7=0,0
-                    nsig8=hist_integral(h_sig,n,nscan)
-                    d_bkg8=ROOT.Double(0)
-                    if (n>nscan): nbkg8=0
-                    else: nbkg8=h_bkg.IntegralAndError(n,nscan,d_bkg8)
-                    s8,u8=calc_sig(nsig8,nbkg8,0,d_bkg8)
-                    if nbkg8<2: s8,u8=0,0
-                    s_high=sqrt(s5**2+s6**2+s7**2+s8**2)
-                    if s_high>smax_high: 
-                        smax_high=s_high
-                        lmax_high=l
-                        mmax_high=m
-                        nmax_high=n
-                        nsig5max_high=nsig5
-                        nbkg5max_high=nbkg5
-                        nsig6max_high=nsig6
-                        nbkg6max_high=nbkg6
-                        nsig7max_high=nsig7
-                        nbkg7max_high=nbkg7
-                        nsig8max_high=nsig8
-                        nbkg8max_high=nbkg8
-                        s5max_high=s5
-                        s6max_high=s6
-                        s7max_high=s7
-                        s8max_high=s8
+            hmax_low_low=0
+            jmax_low_high=0
+            nsig1max_low_low=0
+            nbkg1max_low_low=0
+            nsig2max_low_low=0
+            nbkg2max_low_low=0
+            nsig3max_low_high=0
+            nbkg3max_low_high=0
+            nsig4max_low_high=0
+            nbkg4max_low_high=0
+            s1max_low_low=0
+            s2max_low_low=0
+            s3max_low_high=0
+            s4max_low_high=0
+            smax_low_low=0
+            smax_low_high=0
+                    
+            for h in range(1,i+1):
+
+                nsig1, dsig1 = hist_integral(h_sig, 1, h-1)
+                nbkg1, dbkg1 = hist_integral(h_bkg, 1, h-1)
+                if nbkg1 < 2: continue
+                s1, u1 = calc_sig(nsig1, nbkg1, dsig1, dbkg1)
+                nsig2, dsig2 = hist_integral(h_sig, h, i-1)
+                nbkg2, dbkg2 = hist_integral(h_bkg, h, i-1)
+                if nbkg2 < 2: continue
+                s2, u2 = calc_sig(nsig2, nbkg2, dsig2, dbkg2)
+                s_low_low, u_low_low = sum_z([s1,s2],[u1,u2])
+                if s_low_low > smax_low_low:
+                    smax_low_low = s_low_low
+                    hmax_low_low = h
+                    nsig1max_low_low = nsig1
+                    nbkg1max_low_low = nbkg1
+                    nsig2max_low_low = nsig2
+                    nbkg2max_low_low = nbkg2
+                    s1max_low_low = s1
+                    s2max_low_low = s2
+
+            for j in range(i,k+1):
+
+                nsig3, dsig3 = hist_integral(h_sig, i, j-1)
+                nbkg3, dbkg3 = hist_integral(h_bkg, i, j-1)
+                if nbkg3 < 2: continue
+                s3, u3 = calc_sig(nsig3, nbkg3, dsig3, dbkg3)
+                nsig4, dsig4 = hist_integral(h_sig, j, k-1)
+                nbkg4, dbkg4 = hist_integral(h_bkg, j, k-1)
+                if nbkg4 < 2: continue
+                s4, u4 = calc_sig(nsig4, nbkg4, dsig4, dbkg4)
+                s_low_high, u_low_high = sum_z([s3,s4],[u3,u4])
+                if s_low_high > smax_low_high:
+                    smax_low_high = s_low_high
+                    jmax_low_high = j
+                    nsig3max_low_high = nsig3
+                    nbkg3max_low_high = nbkg3
+                    nsig4max_low_high = nsig4
+                    nbkg4max_low_high = nbkg4
+                    s3max_low_high = s3
+                    s4max_low_high = s4
+
+            s_low = sqrt(smax_low_low**2 + smax_low_high**2)
+            if s_low>smax_low:
+                smax_low=s_low
+                jmax_low=jmax_low_high
+                imax_low=i
+                hmax_low=hmax_low_low
+                nsig4max_low=nsig4max_low_high
+                nbkg4max_low=nbkg4max_low_high
+                nsig3max_low=nsig3max_low_high
+                nbkg3max_low=nbkg3max_low_high
+                nsig2max_low=nsig2max_low_low
+                nbkg2max_low=nbkg2max_low_low
+                nsig1max_low=nsig1max_low_low
+                nbkg1max_low=nbkg1max_low_low
+                s4max_low=s4max_low_high
+                s3max_low=s3max_low_high
+                s2max_low=s2max_low_low
+                s1max_low=s1max_low_low
+
+        for m in range(k,nscan+1):
+
+            lmax_high_low=0
+            nmax_high_high=0
+            nsig5max_high_low=0
+            nbkg5max_high_low=0
+            nsig6max_high_low=0
+            nbkg6max_high_low=0
+            nsig7max_high_high=0
+            nbkg7max_high_high=0
+            nsig8max_high_high=0
+            nbkg8max_high_high=0
+            s5max_high_low=0
+            s6max_high_low=0
+            s7max_high_high=0
+            s8max_high_high=0
+            smax_high_low=0
+            smax_high_high=0
+
+            for l in range(k,m+1):
+
+                nsig5, dsig5 = hist_integral(h_sig, k, l-1)
+                nbkg5, dbkg5 = hist_integral(h_bkg, k, l-1)
+                if nbkg5 < 2: continue
+                s5, u5 = calc_sig(nsig5, nbkg5, dsig5, dbkg5)
+                nsig6, dsig6 = hist_integral(h_sig, l, m-1)
+                nbkg6, dbkg6 = hist_integral(h_bkg, l, m-1)
+                if nbkg6 < 2: continue
+                s6, u6 = calc_sig(nsig6, nbkg6, dsig6, dbkg6)
+                s_high_low, u_high_low = sum_z([s5,s6],[u5,u6])
+                if s_high_low > smax_high_low:
+                    smax_high_low = s_high_low
+                    lmax_high_low = l
+                    nsig5max_high_low = nsig5
+                    nbkg5max_high_low = nbkg5
+                    nsig6max_high_low = nsig6
+                    nbkg6max_high_low = nbkg6
+                    s5max_high_low = s5
+                    s6max_high_low = s6
+
+            for n in range(m,nscan+1):
+
+                nsig7, dsig7 = hist_integral(h_sig, m, n-1)
+                nbkg7, dbkg7 = hist_integral(h_bkg, m, n-1)
+                if nbkg7 < 2: continue
+                s7, u7 = calc_sig(nsig7, nbkg7, dsig7, dbkg7)
+                nsig8, dsig8 = hist_integral(h_sig, n, nscan)
+                nbkg8, dbkg8 = hist_integral(h_bkg, n, nscan)
+                if nbkg8 < 2: continue
+                s8, u8 = calc_sig(nsig8, nbkg8, dsig8, dbkg8)
+                s_high_high, u_high_high = sum_z([s7,s8],[u7,u8])
+                if s_high_high > smax_high_high:
+                    smax_high_high = s_high_high
+                    nmax_high_high = n
+                    nsig7max_high_high = nsig7
+                    nbkg7max_high_high = nbkg7
+                    nsig8max_high_high = nsig8
+                    nbkg8max_high_high = nbkg8
+                    s7max_high_high = s7
+                    s8max_high_high = s8
+
+            s_high = sqrt(smax_high_low**2 + smax_high_high**2)
+            if s_high>smax_high:
+                smax_high=s_high
+                nmax_high=nmax_high_high
+                mmax_high=m
+                lmax_high=lmax_high_low
+                nsig5max_high=nsig5max_high_low
+                nbkg5max_high=nbkg5max_high_low
+                nsig6max_high=nsig6max_high_low
+                nbkg6max_high=nbkg6max_high_low
+                nsig7max_high=nsig7max_high_high
+                nbkg7max_high=nbkg7max_high_high
+                nsig8max_high=nsig8max_high_high
+                nbkg8max_high=nbkg8max_high_high
+                s5max_high=s5max_high_low
+                s6max_high=s6max_high_low
+                s7max_high=s7max_high_high
+                s8max_high=s8max_high_high
 
         s=sqrt(smax_low**2+smax_high**2)
         if s>smax:
