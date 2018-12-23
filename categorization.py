@@ -22,6 +22,7 @@ def getArgs():
     parser = ArgumentParser()
     parser.add_argument('-r', '--region', action='store', choices=['two_jet', 'one_jet', 'zero_jet'], default='zero_jet', help='Region to process')
     parser.add_argument('-n','--nscan',type=int,default=100,help='number of scan.')
+    parser.add_argument('--minN',type=float,default=2,help='minimum number of events in mass window')
     return  parser.parse_args()
 
 def calc_sig(sig, bkg,s_err,b_err):
@@ -67,8 +68,6 @@ def sum_z(zs,us):
     return sumz,sumu
 
 def gettingsig(region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,nscan):
-
-    print 'Evaluating significances for all of the signal models...'
 
     var='m_mumu'
   
@@ -123,18 +122,6 @@ def gettingsig(region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,nscan):
     nsig7, dsig7 = hist_integral(h_sig, mmax, nmax-1)
     nsig8, dsig8 = hist_integral(h_sig, nmax, nscan)
 
-    #nsig1=nsig1*443.0/435.7
-    #nsig2=nsig2*443.0/435.7
-    #nsig3=nsig3*443.0/435.7
-    #nsig4=nsig4*443.0/435.7
-    #nsig5=nsig5*443.0/435.7
-
-    #nbkg1=nbkg1*764530./769468.
-    #nbkg2=nbkg2*764530./769468.
-    #nbkg3=nbkg3*764530./769468.
-    #nbkg4=nbkg4*764530./769468.
-    #nbkg5=nbkg5*764530./769468.
-
     s1,u1=calc_sig(nsig1,nbkg1,dsig1,dbkg1)
     s2,u2=calc_sig(nsig2,nbkg2,dsig2,dbkg2) 
     s3,u3=calc_sig(nsig3,nbkg3,dsig3,dbkg3)
@@ -143,19 +130,14 @@ def gettingsig(region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,nscan):
     s6,u6=calc_sig(nsig6,nbkg6,dsig6,dbkg6)
     s7,u7=calc_sig(nsig7,nbkg7,dsig7,dbkg7)
     s8,u8=calc_sig(nsig8,nbkg8,dsig8,dbkg8)
-    s=sqrt(s1**2+s2**2+s3**2+s4**2+s5**2+s6**2+s7**2+s8**2)
-    u=sqrt((s1*u1)**2+(s2*u2)**2+(s3*u3)**2+(s4*u4)**2+(s5*u5)**2+(s6*u6)**2+(s7*u7)**2+(s8*u8)**2)/s
-    #nsig=baseline_yield[sig]*CrossSections[sig.replace('zp2hdmbbmzp','').replace('mA',',')]
-    #s0,u0=calc_sig(nsig,nbkg,1,1)
-    print nsig1, nbkg1, nsig2, nbkg2, nsig3, nbkg3, nsig4, nbkg4, nsig5, nbkg5, nsig6, nbkg6, nsig7, nbkg7, nsig8, nbkg8, s1, s2, s3, s4, s5, s6, s7, s8, abs(u1), abs(u2), abs(u3), abs(u4), abs(u5), abs(u6), abs(u7), abs(u8)
+    s, u = sum_z([s1,s2,s3,s4,s5,s6,s7,s8],[u1,u2,u3,u4,u5,u6,u7,u8])
+    #print nsig1, nbkg1, nsig2, nbkg2, nsig3, nbkg3, nsig4, nbkg4, nsig5, nbkg5, nsig6, nbkg6, nsig7, nbkg7, nsig8, nbkg8, s1, s2, s3, s4, s5, s6, s7, s8, abs(u1), abs(u2), abs(u3), abs(u4), abs(u5), abs(u6), abs(u7), abs(u8)
        
-    #print 'Significance of %s:  %f +- %f         Baseline significance:  %f +- %f        Imporvement: %f %%'%(sig,s,abs(u),s0,abs(u0),(s-s0)/s0*100 if s0 !=0 else 0)
-    #txt.write('%s  %f  %f  %f  %f  %f\n'%(sig,s,abs(u),s0,abs(u0),(s-s0)/s0*100 if s0 !=0 else 0))
     print 'Significance:  %f +- %f'%(s,abs(u))
-    txt.write('%f  %f\n'%(s,abs(u)))
+    txt.write('Significance: %f +- %f\n'%(s,abs(u)))
 
 
-def categorizing(region,sigs,bkgs,nscan):
+def categorizing(region,sigs,bkgs,nscan, minN):
 
     siglist=''
     for sig in sigs:
@@ -277,11 +259,11 @@ def categorizing(region,sigs,bkgs,nscan):
 
                 nsig1, dsig1 = hist_integral(h_sig, 1, h-1)
                 nbkg1, dbkg1 = hist_integral(h_bkg, 1, h-1)
-                if nbkg1 < 2: continue
+                if nbkg1 < minN: continue
                 s1, u1 = calc_sig(nsig1, nbkg1, dsig1, dbkg1)
                 nsig2, dsig2 = hist_integral(h_sig, h, i-1)
                 nbkg2, dbkg2 = hist_integral(h_bkg, h, i-1)
-                if nbkg2 < 2: continue
+                if nbkg2 < minN: continue
                 s2, u2 = calc_sig(nsig2, nbkg2, dsig2, dbkg2)
                 s_low_low, u_low_low = sum_z([s1,s2],[u1,u2])
                 if s_low_low > smax_low_low:
@@ -298,11 +280,11 @@ def categorizing(region,sigs,bkgs,nscan):
 
                 nsig3, dsig3 = hist_integral(h_sig, i, j-1)
                 nbkg3, dbkg3 = hist_integral(h_bkg, i, j-1)
-                if nbkg3 < 2: continue
+                if nbkg3 < minN: continue
                 s3, u3 = calc_sig(nsig3, nbkg3, dsig3, dbkg3)
                 nsig4, dsig4 = hist_integral(h_sig, j, k-1)
                 nbkg4, dbkg4 = hist_integral(h_bkg, j, k-1)
-                if nbkg4 < 2: continue
+                if nbkg4 < minN: continue
                 s4, u4 = calc_sig(nsig4, nbkg4, dsig4, dbkg4)
                 s_low_high, u_low_high = sum_z([s3,s4],[u3,u4])
                 if s_low_high > smax_low_high:
@@ -357,11 +339,11 @@ def categorizing(region,sigs,bkgs,nscan):
 
                 nsig5, dsig5 = hist_integral(h_sig, k, l-1)
                 nbkg5, dbkg5 = hist_integral(h_bkg, k, l-1)
-                if nbkg5 < 2: continue
+                if nbkg5 < minN: continue
                 s5, u5 = calc_sig(nsig5, nbkg5, dsig5, dbkg5)
                 nsig6, dsig6 = hist_integral(h_sig, l, m-1)
                 nbkg6, dbkg6 = hist_integral(h_bkg, l, m-1)
-                if nbkg6 < 2: continue
+                if nbkg6 < minN: continue
                 s6, u6 = calc_sig(nsig6, nbkg6, dsig6, dbkg6)
                 s_high_low, u_high_low = sum_z([s5,s6],[u5,u6])
                 if s_high_low > smax_high_low:
@@ -378,11 +360,11 @@ def categorizing(region,sigs,bkgs,nscan):
 
                 nsig7, dsig7 = hist_integral(h_sig, m, n-1)
                 nbkg7, dbkg7 = hist_integral(h_bkg, m, n-1)
-                if nbkg7 < 2: continue
+                if nbkg7 < minN: continue
                 s7, u7 = calc_sig(nsig7, nbkg7, dsig7, dbkg7)
                 nsig8, dsig8 = hist_integral(h_sig, n, nscan)
                 nbkg8, dbkg8 = hist_integral(h_bkg, n, nscan)
-                if nbkg8 < 2: continue
+                if nbkg8 < minN: continue
                 s8, u8 = calc_sig(nsig8, nbkg8, dsig8, dbkg8)
                 s_high_high, u_high_high = sum_z([s7,s8],[u7,u8])
                 if s_high_high > smax_high_high:
@@ -450,11 +432,11 @@ def categorizing(region,sigs,bkgs,nscan):
             s8=s8max_high
             
 
-    print nsig1max, nbkg1max, nsig2max, nbkg2max, nsig3max, nbkg3max, nsig4max, nbkg4max, nsig5max, nbkg5max, nsig6max, nbkg6max, nsig7max, nbkg7max, nsig8max, nbkg8max, s1max, s2max, s3max, s4max, s5max, s6max, s7max, s8max
+    #print nsig1max, nbkg1max, nsig2max, nbkg2max, nsig3max, nbkg3max, nsig4max, nbkg4max, nsig5max, nbkg5max, nsig6max, nbkg6max, nsig7max, nbkg7max, nsig8max, nbkg8max, s1max, s2max, s3max, s4max, s5max, s6max, s7max, s8max
 
     print '========================================================================='
     print 'The maximal significance:  %f' %(smax)
-    print 'First boundary:  %f,    Second boundary  %f,    Third boundary  %f,    Fourth boundary  %f,    Fifth boundary  %f,    Sixth boundary  %f,    Seventh boundary  %f' %((hmax-1.)/nscan,(imax-1.)/nscan,(jmax-1.)/nscan,(kmax-1.)/(nscan),(lmax-1.)/(nscan),(mmax-1.)/(nscan),(nmax-1.)/(nscan))
+    print 'First boundary:  %f,    Second boundary  %f,    Third boundary  %f,    Fourth boundary  %f,    Fifth boundary  %f,    Sixth boundary  %f,    Seventh boundary  %f' %((hmax-1.)/nscan, (imax-1.)/nscan, (jmax-1.)/nscan, (kmax-1.)/(nscan), (lmax-1.)/(nscan), (mmax-1.)/(nscan), (nmax-1.)/(nscan))
     print '========================================================================='
 
     return hmax, imax, jmax, kmax, lmax, mmax, nmax
@@ -484,7 +466,7 @@ def main():
 
     CrossSections={}
 
-    hmax, imax, jmax, kmax, lmax, mmax, nmax=categorizing(region,sigs,bkgs, nscan)
+    hmax, imax, jmax, kmax, lmax, mmax, nmax=categorizing(region,sigs,bkgs, nscan, args.minN)
 
     gettingsig(region,sigs,bkgs, hmax,imax,jmax,kmax,lmax,mmax,nmax,nscan)
 
