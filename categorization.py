@@ -448,7 +448,7 @@ def main():
 
     args=getArgs()
 
-    sigs = ['ggF','VBF','VH','ttH']
+    sigs = ['ggF','VBF']#,'VH','ttH']
 
     bkgs = ['data']
 

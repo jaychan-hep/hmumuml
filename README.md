@@ -72,10 +72,16 @@ python CheckArraysComplete.py
 
 There are several stages where you will need to recover the files. One is when there are missing files. Others are when there are bad files that can't be read. Both cases can be addressed by running `RecoverMissingFiles.py`.
 
-After checking the completeness, if there are missing files:
+After checking the completeness, if there are missing files, you can either run the recover script locally:
 
 ```
 python RecoverMissingFiles.py -m
+```
+
+Or resubmit the jobs for the missing files:
+
+```
+python SubmitRecoverMissingFiles.py
 ```
 
 When running the training scripts later on, errors might occur due to some bad files that cannot be loaded. When this happens, do the following to recover the bad files:
@@ -110,9 +116,11 @@ Note:
 ```
 #### Optimizing the BDT boundaries
 
-Currently, one can only optimize the boundaries using one single signal point. The script in the master branch will get rid of leftmost bin (most background like) and output the best three BDT boundaries with which the combined significance of the target siganl is largest. Please checkout to branch full_cat if you want to also include the leftmost bin.
 ```
-python categorization.py [-r REGION] 
+python categorization.py [-r REGION] [--minN minN] 
+
+Note:
+   minN is the minimum number of events required in the mass window. The default is 2.
 ```
 #### Getting the significance using customized BDT boundaries
 

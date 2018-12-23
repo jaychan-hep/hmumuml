@@ -50,14 +50,14 @@ def process_arrays(args):
     Muons_Eta_Sub = array('f', [0])
     Muons_Phi_Lead = array('f', [0])
     Muons_Phi_Sub = array('f', [0])
-    Jets_DeltaEta_jj = array('f', [0])
-    Jets_DeltaR_jj = array('f', [0])
 
     Muons_MCPExpReso_Smear_Minv_MuMu_Sigma = array('f', [0])
     Muons_MCPExpReso_Smear_Lead = array('f', [0])
     Muons_MCPExpReso_Smear_Sub = array('f', [0])
     Muons_CosThetaStar = array('f', [0])
-    
+
+    Z_Y = array('f', [0])
+
     njet = array('i',[0])
     njet_cen = array('i',[0])
     njet_fwd = array('i',[0])
@@ -68,9 +68,12 @@ def process_arrays(args):
     Jets_Eta = ROOT.vector('float')()
     Jets_Phi = ROOT.vector('float')()
     Jets_BTag = ROOT.vector('int')()
+    Jets_DeltaEta_jj = array('f', [0])
+    Jets_DeltaR_jj = array('f', [0])
 
     metFinalTrk = array('f', [0])
     metFinalTrkPhi = array('f', [0])
+    Event_PT_MuMuj1 = array('f', [0])
 
     if not args.isdata:
         Weight_Global = array('f', [0])
@@ -94,6 +97,8 @@ def process_arrays(args):
     t.SetBranchAddress('Muons_MCPExpReso_Smear_Sub', Muons_MCPExpReso_Smear_Sub)
     t.SetBranchAddress('Muons_CosThetaStar', Muons_CosThetaStar)
 
+    t.SetBranchAddress('Z_Y', Z_Y)
+
     #t.SetBranchAddress('Jets_Multip', njet)
     t.SetBranchAddress('Jets_PT', Jets_Pt)
     t.SetBranchAddress('Jets_E', Jets_Energy)
@@ -105,6 +110,7 @@ def process_arrays(args):
 
     t.SetBranchAddress('Event_MET', metFinalTrk)
     t.SetBranchAddress('Event_MET_Phi', metFinalTrkPhi)
+    t.SetBranchAddress('Event_PT_MuMuj1', Event_PT_MuMuj1)
 
     if not args.isdata:
         t.SetBranchAddress('GlobalWeight', Weight_Global)
@@ -123,11 +129,12 @@ def process_arrays(args):
     t.SetBranchStatus('Muons_Eta_Sub', 1)
     t.SetBranchStatus('Muons_Phi_Lead', 1)
     t.SetBranchStatus('Muons_Phi_Sub', 1)
-    t.SetBranchStatus('Muons_CosThetaStar', 1)
 
     t.SetBranchStatus('Muons_MCPExpReso_Smear_Minv_MuMu_Sigma', 1)
     t.SetBranchStatus('Muons_MCPExpReso_Smear_Lead', 1)
     t.SetBranchStatus('Muons_MCPExpReso_Smear_Sub', 1)
+    t.SetBranchStatus('Muons_CosThetaStar', 1)
+    t.SetBranchStatus('Z_Y', 1)
 
     #t.SetBranchStatus('Jets_Multip', 1)
     t.SetBranchStatus('Jets_PT', 1)
@@ -139,6 +146,7 @@ def process_arrays(args):
 
     t.SetBranchStatus('Event_MET', 1)
     t.SetBranchStatus('Event_MET_Phi', 1)
+    t.SetBranchStatus('Event_PT_MuMuj1', 1)
 
     if not args.isdata:
         t.SetBranchStatus('GlobalWeight', 1)
@@ -259,11 +267,11 @@ def process_arrays(args):
 
             # dimuon
             dm = []
-            dm.append([mumu.Pt()/Muons_Minv_MuMu[0], mumu.Eta(), mumu.Phi(), 0, 0])
+            dm.append([mumu.Pt()/Muons_Minv_MuMu[0], mumu.Eta(), mumu.Phi(), Z_Y[0], 0])
 
             # extras
             ee = []
-            ee.append([njet_cen[0], njet_fwd[0], nbjet[0], HT[0], Muons_CosThetaStar[0], 0])
+            ee.append([njet_cen[0], njet_fwd[0], nbjet[0], HT[0], Event_PT_MuMuj1[0], 0])
 
             # cuts
             if not (nbjet[0] == 0 and metFinalTrk[0] < 80): continue

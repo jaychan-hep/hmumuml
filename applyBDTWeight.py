@@ -193,7 +193,7 @@ def main():
     args=getArgs()
     
 
-    sigs = ['ggF','VBF']#,'VH','ttH']
+    sigs = ['ggF','VBF','VH','ttH']
     train_sig=''
     bkgs = ['data']
 
