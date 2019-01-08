@@ -74,6 +74,11 @@ def process_arrays(args):
     metFinalTrk = array('f', [0])
     metFinalTrkPhi = array('f', [0])
     Event_PT_MuMuj1 = array('f', [0])
+    Event_PT_MuMuj2 = array('f', [0])
+    Event_Y_MuMuj1 = array('f', [0])
+    Event_Y_MuMuj2 = array('f', [0])
+    Event_Centrality = array('f', [0])
+    Event_MET_Sig = array('f', [0])
 
     if not args.isdata:
         Weight_Global = array('f', [0])
@@ -111,6 +116,11 @@ def process_arrays(args):
     t.SetBranchAddress('Event_MET', metFinalTrk)
     t.SetBranchAddress('Event_MET_Phi', metFinalTrkPhi)
     t.SetBranchAddress('Event_PT_MuMuj1', Event_PT_MuMuj1)
+    t.SetBranchAddress('Event_PT_MuMuj2', Event_PT_MuMuj2)
+    t.SetBranchAddress('Event_Y_MuMuj1', Event_Y_MuMuj1)
+    t.SetBranchAddress('Event_Y_MuMuj2', Event_Y_MuMuj1)
+    t.SetBranchAddress('Event_Centrality', Event_Centrality)
+    t.SetBranchAddress('Event_MET_Sig', Event_MET_Sig)
 
     if not args.isdata:
         t.SetBranchAddress('GlobalWeight', Weight_Global)
@@ -133,7 +143,7 @@ def process_arrays(args):
     t.SetBranchStatus('Muons_MCPExpReso_Smear_Minv_MuMu_Sigma', 1)
     t.SetBranchStatus('Muons_MCPExpReso_Smear_Lead', 1)
     t.SetBranchStatus('Muons_MCPExpReso_Smear_Sub', 1)
-    t.SetBranchStatus('Muons_CosThetaStar', 1)
+    t.SetBranchStatus('Muons_CosThetaStar', 0)
     t.SetBranchStatus('Z_Y', 1)
 
     #t.SetBranchStatus('Jets_Multip', 1)
@@ -147,6 +157,11 @@ def process_arrays(args):
     t.SetBranchStatus('Event_MET', 1)
     t.SetBranchStatus('Event_MET_Phi', 1)
     t.SetBranchStatus('Event_PT_MuMuj1', 1)
+    t.SetBranchStatus('Event_PT_MuMuj2', 0)
+    t.SetBranchStatus('Event_Y_MuMuj1', 1)
+    t.SetBranchStatus('Event_Y_MuMuj2', 1)
+    t.SetBranchStatus('Event_Centrality', 0)
+    t.SetBranchStatus('Event_MET_Sig', 0)
 
     if not args.isdata:
         t.SetBranchStatus('GlobalWeight', 1)
@@ -271,7 +286,7 @@ def process_arrays(args):
 
             # extras
             ee = []
-            ee.append([njet_cen[0], njet_fwd[0], nbjet[0], HT[0], Event_PT_MuMuj1[0], 0])
+            ee.append([njet_cen[0], njet_fwd[0], nbjet[0], HT[0], Event_PT_MuMuj1[0], Event_Y_MuMuj1[0], Event_MET_Sig[0]])
 
             # cuts
             if not (nbjet[0] == 0 and metFinalTrk[0] < 80): continue

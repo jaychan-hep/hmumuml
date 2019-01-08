@@ -71,7 +71,7 @@ def apply_weight(train_sig,catagories,region,isdata=False):
                     print 'ERROR: Dimension of dimuon npy is not correct!!'
                     error
                 extras=np.load(npydir+'/'+appinput.replace('.root','_extras.npy'))
-                if [extras.shape[1],extras.shape[2]]!=[1,6]:
+                if [extras.shape[1],extras.shape[2]]!=[1,7]:
                     print 'ERROR: Dimension of extras npy is not correct!!'
                     error
                 infile = ROOT.TFile.Open(AppInputsdir+'/'+appinput)

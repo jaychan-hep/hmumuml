@@ -90,7 +90,7 @@ def load_npy(catagories,region):
                     error
                 npytemp.append(dimuon.reshape(len(dimuon),-1))
                 extras=np.load(filedir+'/'+npy.replace('jets','extras'))
-                if [extras.shape[1],extras.shape[2]]!=[1,6]:
+                if [extras.shape[1],extras.shape[2]]!=[1,7]:
                     print 'ERROR: The dimension of extras npy file is not correct!!'
                     error
                 npytemp.append(extras.reshape(len(extras),-1))
