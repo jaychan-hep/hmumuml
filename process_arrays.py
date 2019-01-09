@@ -56,7 +56,10 @@ def process_arrays(args):
     Muons_MCPExpReso_Smear_Sub = array('f', [0])
     Muons_CosThetaStar = array('f', [0])
 
-    Z_Y = array('f', [0])
+    Z_PT_FSR = array('f', [0])
+    Z_Eta_FSR = array('f', [0])
+    Z_Phi_FSR = array('f', [0])
+    Z_Y_FSR = array('f', [0])
 
     njet = array('i',[0])
     njet_cen = array('i',[0])
@@ -102,7 +105,10 @@ def process_arrays(args):
     t.SetBranchAddress('Muons_MCPExpReso_Smear_Sub', Muons_MCPExpReso_Smear_Sub)
     t.SetBranchAddress('Muons_CosThetaStar', Muons_CosThetaStar)
 
-    t.SetBranchAddress('Z_Y', Z_Y)
+    t.SetBranchAddress('Z_PT_FSR', Z_PT_FSR)
+    t.SetBranchAddress('Z_Eta_FSR', Z_Eta_FSR)
+    t.SetBranchAddress('Z_Phi_FSR', Z_Phi_FSR)
+    t.SetBranchAddress('Z_Y_FSR', Z_Y_FSR)
 
     #t.SetBranchAddress('Jets_Multip', njet)
     t.SetBranchAddress('Jets_PT', Jets_Pt)
@@ -144,7 +150,10 @@ def process_arrays(args):
     t.SetBranchStatus('Muons_MCPExpReso_Smear_Lead', 1)
     t.SetBranchStatus('Muons_MCPExpReso_Smear_Sub', 1)
     t.SetBranchStatus('Muons_CosThetaStar', 0)
-    t.SetBranchStatus('Z_Y', 1)
+    t.SetBranchStatus('Z_PT_FSR', 1)
+    t.SetBranchStatus('Z_Eta_FSR', 1)
+    t.SetBranchStatus('Z_Phi_FSR', 1)
+    t.SetBranchStatus('Z_Y_FSR', 1)
 
     #t.SetBranchStatus('Jets_Multip', 1)
     t.SetBranchStatus('Jets_PT', 1)
@@ -282,11 +291,11 @@ def process_arrays(args):
 
             # dimuon
             dm = []
-            dm.append([mumu.Pt()/Muons_Minv_MuMu[0], mumu.Eta(), mumu.Phi(), Z_Y[0], 0])
+            dm.append([Z_PT_FSR[0]/Muons_Minv_MuMu[0], Z_Eta_FSR[0], Z_Phi_FSR[0], Z_Y_FSR[0], 0])
 
             # extras
             ee = []
-            ee.append([njet_cen[0], njet_fwd[0], nbjet[0], HT[0], Event_PT_MuMuj1[0], Event_Y_MuMuj1[0], Event_MET_Sig[0]])
+            ee.append([njet_cen[0], njet_fwd[0], nbjet[0], HT[0], Event_PT_MuMuj1[0], Event_Y_MuMuj1[0], 0])
 
             # cuts
             if not (nbjet[0] == 0 and metFinalTrk[0] < 80): continue
