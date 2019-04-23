@@ -33,32 +33,36 @@ def missing_samplelist(channel,category,inputdir):
             array_basename='mc16a_'+array_basename
         elif 'MC16D' in filename or 'mc16d' in filename:
             array_basename='mc16d_'+array_basename
+        elif 'MC16E' in filename or 'mc16e' in filename:
+            #continue
+            array_basename='mc16e_'+array_basename
         elif 'data15' in filename:
             array_basename='data15_'+array_basename
         elif 'data16' in filename:
             array_basename='data16_'+array_basename
         elif 'data17' in filename:
             array_basename='data17_'+array_basename
+        elif 'data18' in filename:
+            array_basename='data18_'+array_basename
         else:
             print 'WARNING: File does not match with a tipical file name!!'
-
                     
-        for section in ['_train','_val','']:
-            for region in ['zero_jet','one_jet','two_jet']:
-                for obj in ['met','jets','muons','dijet','dimuon','extras']: 
-                    if not ((os.path.isfile('arrays/%s/%s%s_%s_%s.npy' % (category,array_basename, section, region, obj))  and (os.path.isfile('AppInputs/%s/%s_%s.root' % (category,array_basename,region)) or section != '') and (os.path.isfile('arrays/%s/%s%s_%s_weight.npy' % (category,array_basename, section, region)) or section=='')) or os.path.isfile('arrays/%s/%s%s_%s.txt' % (category,array_basename, section, region))):
+        for section in range(-1,4):
+            for region in ['two_jet','one_jet','zero_jet']:
+                for obj in ['jets','dijet','dimuon','met']: 
+                    if not ((os.path.isfile('arrays/%s/%s_%s_%d_%s.npy' % (category, array_basename, region, section, obj))  and (os.path.isfile('AppInputs/%s/%s_%s.root' % (category,array_basename,region)) or section != -1) and (os.path.isfile('arrays/%s/%s_%s_%d_weight.npy' % (category,array_basename, region, section)) or section == -1)) or os.path.isfile('arrays/%s/%s_%s_%d.txt' % (category,array_basename, region, section))):
 #                       print '%s%s_%s_%s.npy' % (array_basename, section, region, obj)
-                        samples.append([filename,section,region,category,channel])
+                        samples.append([filename,str(section),region,category,channel])
                         break
     return samples
 
 def main():
     args=getArgs()
     inputdir="inputs"
-    sample_list=[['data',['data15','data16','data17']],
+    sample_list=[['data',['data15','data16','data17','data18']],
                  #['ttbar',['410472']],
-                 #['Z2',['361107',
-                 #      '308093']],
+                 ['Z2',['361107',
+                       '308093']],
                  #['stop',['410015','410016']],
                  #['diboson',['363356','363358','364250','364253','364254']],
                  ['ttH',['344388']],
@@ -97,7 +101,7 @@ def main():
         else:
             j=1
         print 'File:     %s' %(sample[0])
-        print 'Section:  %s' %('general' if sample[1]=='' else sample[1].replace('_','') )
+        print 'Section:  %s' %('general' if sample[1]=='-1' else sample[1] )
         print 'Region:   %s' %(sample[2])
     print '====================================================================================================='
     print 'Missing summary:'

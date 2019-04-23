@@ -116,4 +116,4 @@ ROOT.gROOT.SetStyle( style.GetName() )
 # Force style applies styles to histograms made under a different style regim
 ROOT.gROOT.ForceStyle()
 ROOT.TGaxis.SetMaxDigits( 4 )
-ROOT.gStyle.SetPalette(1)
+#ROOT.gStyle.SetPalette(1)

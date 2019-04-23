@@ -15,16 +15,10 @@ import os
 from datetime import datetime
 from argparse import ArgumentParser
 
-def getArgs():
-    """Get arguments from command line."""
-    parser = ArgumentParser(description="Process input rootfiles into numpy arrays for MonoHbb XGBoost analysis.")
-    parser.add_argument('-i', '--inputdir', action='store', default='inputs', help='Directory that contains ntuples.')
-    return  parser.parse_args()
-
 def submitLSF(params,jobname,date):
 
     initDir=os.getcwd()
-    lsfDir=initDir+"/condor/SubmitProcessArrays/"+date+"/"+jobname+"/"
+    lsfDir=initDir+"/condor/cat_opt/"+date+"/"
     if not os.path.exists(lsfDir):
        os.makedirs(lsfDir)
 
@@ -32,7 +26,7 @@ def submitLSF(params,jobname,date):
     jdl+="Universe        = vanilla\n"
     jdl+="Notification    = Never\n"
     jdl+="initialdir      = "+initDir+"\n"
-    jdl+="Executable      = "+initDir+"/SubmitRecoverMissingFiles.sh\n"
+    jdl+="Executable      = "+initDir+"/submit_categorization_optimization_2D.sh\n"
     #jdl+="GetEnv          = True\n"
     jdl+="Output          = "+lsfDir+jobname+".$(ClusterId).$(ProcId).out\n"
     jdl+="Error           = "+lsfDir+jobname+".$(ClusterId).$(ProcId).err\n"
@@ -42,6 +36,7 @@ def submitLSF(params,jobname,date):
     #jdl+="should_transfer_files = yes\n"
     #jdl+='Requirements = ((Arch == "X86_64") && (regexp("CentOS",OpSysLongName)))\n'
     jdl+='Requirements = ((Arch == "X86_64") && (regexp("CentOS7",OpSysAndVer)))\n'
+    #jdl+='Requirements = ((Arch == "X86_64") && (regexp("SLC",OpSysLongName)))\n'
     jdl+="WhenToTransferOutput = ON_EXIT_OR_EVICT\n"
     jdl+="OnExitRemove         = TRUE\n"
     jdl+='+JobFlavour = "tomorrow"\n'
@@ -67,45 +62,22 @@ def submitLSF(params,jobname,date):
     os.system(command)
     return
 
-
-
-
 def main():
-    args=getArgs()
     date = datetime.now().strftime("%Y-%m-%d-%H-%M")
-    inputdir=args.inputdir
-    sample_list=['data','ttH','VH','VBF','ggF','Z2']
 
-    samples={}
-    for channel in sample_list:
-        #if channel=='Znunu': continue
-        samples[channel]=[]
-    
-    #print samples
+    arg=[]
+    for i in range(2,8):
+        for j in range(2,8):
+            #if i!=j: continue
+            #for k in range(135,165):
+            for k in range(50,90):
+                if os.path.isfile('cat_opt/%d_%d/two_jet_0_%d.txt'%(j,i,k)): continue
+                arg.append('%d %d %d'%(k, i, j))
+    submitLSF(arg,'cat_opt',date)
 
-    text_file = open("arrays/missing_samplelist.txt", "r")
-    lines = text_file.read().splitlines()
-    for line in lines:
-        args=str(line).split(' ')
-        if args[1] == '-1':
-            section='g'
-        else:
-            section= args[1]
-        #print samples
-        #print line
-        samples[args[3]]+=["%s %s %s %s"% (args[0],section,args[2],args[3])]
-        #print samples
-        #break
-
-        
-    for channel in samples:
-        if not samples[channel]==[]: submitLSF(samples[channel],channel,date)
-
-                
-
-
-    print 'Log files will be saved to \"condor/SubmitProcessArrays/%s/\"'%(date)
+    print 'Log files will be saved to \"condor/cat_opt/%s/\"'%(date)
     print 'Use \"condor_q\" to check to status of condor jobs.'
-    
+
 if __name__=='__main__':
     main()
+

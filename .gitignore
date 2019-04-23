@@ -1,7 +1,11 @@
-AppInputs/
-arrays/
+AppInputs
+arrays
+models
+bdt_plots
+cat_opt
 *.cc
-condor/
-outputs/
-significances/
-ve/
+condor
+outputs
+outputs_2D
+significances
+ve

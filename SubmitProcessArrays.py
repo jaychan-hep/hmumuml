@@ -41,7 +41,7 @@ def submitLSF(params,jobname,date):
     jdl+="stream_error    = False\n"
     #jdl+="should_transfer_files = yes\n"
     #jdl+='Requirements = ((Arch == "X86_64") && (regexp("CentOS",OpSysLongName)))\n'
-    jdl+='Requirements = ((Arch == "X86_64") && (regexp("SLC",OpSysLongName)))\n'
+    jdl+='Requirements = ((Arch == "X86_64") && (regexp("CentOS7",OpSysAndVer)))\n'
     jdl+="WhenToTransferOutput = ON_EXIT_OR_EVICT\n"
     jdl+="OnExitRemove         = TRUE\n"
     jdl+='+JobFlavour = "tomorrow"\n'
@@ -73,21 +73,19 @@ def submitLSF(params,jobname,date):
 def arrange_samplelist(channel,category,inputdir):
     samples=[]
     for filename in os.listdir(inputdir):
-        if channel not in filename: 
-            continue
-        elif ".root" not in filename:
-            continue
-        else:
-            for section in ['t', 'v', 'none']:
-                for region in ['zero_jet', 'one_jet', 'two_jet']:
-                    samples.append("%s %s %s %s"% (filename,category,section,region))
+        if channel not in filename: continue
+        if '.root' not in filename: continue
+        #if 'mc16e' in filename: continue
+        for section in ['g', '0', '1', '2', '3']:
+            for region in ['two_jet','one_jet','zero_jet']:
+                samples.append("%s %s %s %s"% (filename,category,section,region))
     return samples
 
 def main():
     args=getArgs()
     date = datetime.now().strftime("%Y-%m-%d-%H-%M")
     inputdir=args.inputdir
-    sample_list=[['data',['data15','data16','data17']],
+    sample_list=[['data',['data15','data16','data17','data18']],
                  #['ttbar',['410472']],
                  #['Z2',['361107',
                  #      '308093']],

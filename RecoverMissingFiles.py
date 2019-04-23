@@ -11,14 +11,12 @@ def recover(recoverlist):
     lines = text_file.read().splitlines()
     for line in lines:
         arg=str(line).split(' ')
-        if 'train' in arg[1]:
-            section='-t'
-        elif 'val' in arg[1]:
-            section='-v'
+        if arg[1] == '-1':
+            section=-1
         else:
-            section=''
-        print "python process_arrays.py -n %s %s -r %s -c %s %s" % (arg[0],section,arg[2],arg[3], '-d' if 'data' in arg[3] else '')
-        os.system("python process_arrays.py -n %s %s -r %s -c %s %s" % (arg[0],section,arg[2],arg[3], '-d' if 'data' in arg[3] else ''))
+            section=arg[1]
+        print "python process_arrays.py -n %s -s %s -r %s -c %s %s" % (arg[0],section,arg[2],arg[3], '-d' if 'data' in arg[3] else '')
+        os.system("python process_arrays.py -n %s -s %s -r %s -c %s %s" % (arg[0],section,arg[2],arg[3], '-d' if 'data' in arg[3] else ''))
 
 
 if args.recovermissing:

@@ -11,20 +11,20 @@
 #
 initdir=$1
 filename=$2
-if [ $3 == 'none' ]
+if [ $3 == 'g' ]
     then
-    runsection=''
+    runsection=-1
 else
-    runsection=-$3
+    runsection=$3
 fi
 region=$4
 category=$5
 
 cd $initdir
-source ./setup_lxplus.sh
-echo python process_arrays.py -n $filename $runsection -r $region -c $category
+source ./setup_pcuw.sh
+echo python process_arrays.py -n $filename -s $runsection -r $region -c $category
 if [[ "$category" == *data* ]]; then
-python process_arrays.py -n $filename $runsection -r $region -c $category -d
+python process_arrays.py -n $filename -s $runsection -r $region -c $category -d
 else
-python process_arrays.py -n $filename $runsection -r $region -c $category
+python process_arrays.py -n $filename -s $runsection -r $region -c $category
 fi
