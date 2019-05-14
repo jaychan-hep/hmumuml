@@ -21,7 +21,7 @@ region=$5
 
 
 cd $initdir
-source ./setup_pcuw.sh
+source ./setup_lxplus.sh
 echo python process_arrays.py -n $filename -s $runsection -r $region -c $category
 if [[ $category == *"data"* ]]; then
     echo "data!"

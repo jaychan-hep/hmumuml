@@ -41,6 +41,9 @@ def process_arrays(args):
     t = f.Get('DiMuonNtuple')
 
     # Define variables
+    EventInfo_ChannelNumber = array('i', [0])
+    Truth_Boson_Mass = array('f', [0])
+
     eventNumber = array('L', [0])
 
     nmuon = array('i',[0])
@@ -58,8 +61,8 @@ def process_arrays(args):
     Jets_PT_Sub = array('f', [0])
     Jets_Eta_Lead = array('f', [0])
     Jets_Eta_Sub = array('f', [0])
-    Jets_Phi_Lead = array('f', [0])
-    Jets_Phi_Sub = array('f', [0])
+    #Jets_Phi_Lead = array('f', [0])
+    #Jets_Phi_Sub = array('f', [0])
     DeltaPhi_mumuj1 = array('f', [0])
     DeltaPhi_mumuj2 = array('f', [0])
     Jets_PT_jj = array('f', [0])
@@ -69,6 +72,12 @@ def process_arrays(args):
     DeltaPhi_mumujj = array('f', [0])
     Jets_Minv_jj = array('f', [0])
 
+    Jets_Pt = ROOT.vector('float')()
+    Jets_E = ROOT.vector('float')()
+    Jets_Eta = ROOT.vector('float')()
+    Jets_Phi = ROOT.vector('float')()
+    Jets_PassFJVT = ROOT.vector('int')()
+
     njet = array('i',[0])
 
     metFinalTrk = array('f', [0])
@@ -76,8 +85,12 @@ def process_arrays(args):
     Event_HasBJet = array('i', [0])
 
     Weight_Global = array('f', [0])
+    EventWeight_MCEventWeight = array('f', [0])
 
     #Set up the address of variables in branch
+    t.SetBranchAddress('EventInfo_ChannelNumber', EventInfo_ChannelNumber)
+    t.SetBranchAddress('Truth_Boson_Mass', Truth_Boson_Mass)
+
     t.SetBranchAddress('EventInfo_EventNumber', eventNumber)
 
     t.SetBranchAddress('Muons_Multip', nmuon)
@@ -91,23 +104,30 @@ def process_arrays(args):
     t.SetBranchAddress('Z_Y_FSR', Z_Y_FSR)
     t.SetBranchAddress('Z_Phi_FSR', Z_Phi_FSR)
 
-    t.SetBranchAddress('Jets_PT_Lead', Jets_PT_Lead)
-    t.SetBranchAddress('Jets_PT_Sub', Jets_PT_Sub)
-    t.SetBranchAddress('Jets_Eta_Lead', Jets_Eta_Lead)
-    t.SetBranchAddress('Jets_Eta_Sub', Jets_Eta_Sub)
-    t.SetBranchAddress('Jets_Phi_Lead', Jets_Phi_Lead)
-    t.SetBranchAddress('Jets_Phi_Sub', Jets_Phi_Sub)
-    t.SetBranchAddress('Jets_PT_jj', Jets_PT_jj)
-    t.SetBranchAddress('Jets_Eta_jj', Jets_Eta_jj)
-    t.SetBranchAddress('Jets_Phi_jj', Jets_Phi_jj)
-    t.SetBranchAddress('Jets_Minv_jj', Jets_Minv_jj)
+    #t.SetBranchAddress('Jets_PT_Lead', Jets_PT_Lead)
+    #t.SetBranchAddress('Jets_PT_Sub', Jets_PT_Sub)
+    #t.SetBranchAddress('Jets_Eta_Lead', Jets_Eta_Lead)
+    #t.SetBranchAddress('Jets_Eta_Sub', Jets_Eta_Sub)
+    #t.SetBranchAddress('Jets_Phi_Lead', Jets_Phi_Lead)
+    #t.SetBranchAddress('Jets_Phi_Sub', Jets_Phi_Sub)
+    #t.SetBranchAddress('Jets_PT_jj', Jets_PT_jj)
+    #t.SetBranchAddress('Jets_Eta_jj', Jets_Eta_jj)
+    #t.SetBranchAddress('Jets_Phi_jj', Jets_Phi_jj)
+    #t.SetBranchAddress('Jets_Minv_jj', Jets_Minv_jj)
 
-    t.SetBranchAddress('Jets_jetMultip', njet)
+    t.SetBranchAddress('Jets_PT', Jets_Pt)
+    t.SetBranchAddress('Jets_E', Jets_E)
+    t.SetBranchAddress('Jets_Eta', Jets_Eta)
+    t.SetBranchAddress('Jets_Phi', Jets_Phi)
+    t.SetBranchAddress('Jets_PassFJVT', Jets_PassFJVT)
+
+    #t.SetBranchAddress('Jets_jetMultip', njet)
 
     t.SetBranchAddress('Event_HasBJet', Event_HasBJet)
     t.SetBranchAddress('Event_MET', metFinalTrk)
 
     t.SetBranchAddress('GlobalWeight', Weight_Global)
+    t.SetBranchAddress('EventWeight_MCEventWeight', EventWeight_MCEventWeight)
 
     if args.section == -1:
         # Create new tree
@@ -147,6 +167,7 @@ def process_arrays(args):
 
         outtree.Branch('m_mumu', Muons_Minv_MuMu_Fsr, 'm_mumu/F')
         outtree.Branch('weight', weight, 'weight/D')
+        outtree.Branch('EventWeight_MCEventWeight', EventWeight_MCEventWeight, 'EventWeight_MCEventWeight/F')
 
     met = []
     jets = []
@@ -176,12 +197,12 @@ def process_arrays(args):
         # place holder 
         if 1:
             # preselection
-            if args.region == 'two_jet':
-                if not (njet[0] >= 2): continue
-            if args.region == 'one_jet':
-                if not (njet[0] == 1): continue
-            if args.region == 'zero_jet':
-                if not (njet[0] == 0): continue
+            #if args.region == 'two_jet':
+            #    if not (njet[0] >= 2): continue
+            #if args.region == 'one_jet':
+            #    if not (njet[0] == 1): continue
+            #if args.region == 'zero_jet':
+            #    if not (njet[0] == 0): continue
 
             if not (nmuon[0] == 2): continue
             if not (Event_HasBJet[0] == 0): continue
@@ -197,38 +218,81 @@ def process_arrays(args):
                 # separate events into training and validation samples
                 if eventNumber[0]%4 != args.section: continue
 
-            event_yield+=1
-
-            # mets
-            eM = []
-            eM.append([metFinalTrk[0] if args.region == 'two_jet' else -9999, -9999])
 
             # Jets
             ej = []
+            njet[0] = 0
+            for j in range(0, len(Jets_Pt)):
+                if not Jets_PassFJVT[j]: continue
+                njet[0] = njet[0] + 1
+                ej.append([Jets_Pt[j], Jets_Eta[j], ROOT.TVector2.Phi_mpi_pi(Jets_Phi[j] - Z_Phi_FSR[0]), Jets_Phi[j], Jets_E[j]])
 
-            if (njet[0] == 0): 
-                ej = [[-9999, -9999, -9999, -9999, -9999],[-9999, -9999, -9999, -9999, -9999]]
-            elif (njet[0] == 1): 
-                DeltaPhi_mumuj1[0] = ROOT.TVector2.Phi_mpi_pi(Jets_Phi_Lead[0] - Z_Phi_FSR[0])
-                DeltaPhi_mumuj2[0] = -9999
-                ej = [[Jets_PT_Lead[0], Jets_Eta_Lead[0], DeltaPhi_mumuj1[0], -9999, -9999],[-9999, -9999, -9999, -9999, -9999]]
-            else:
-                DeltaPhi_mumuj1[0] = ROOT.TVector2.Phi_mpi_pi(Jets_Phi_Lead[0] - Z_Phi_FSR[0])
-                DeltaPhi_mumuj2[0] = ROOT.TVector2.Phi_mpi_pi(Jets_Phi_Sub[0] - Z_Phi_FSR[0])
-                ej = [[Jets_PT_Lead[0], Jets_Eta_Lead[0], DeltaPhi_mumuj1[0], -9999, -9999],[Jets_PT_Sub[0], Jets_Eta_Sub[0], DeltaPhi_mumuj2[0], -9999, -9999]]
+            # jet channel selection
+            if args.region == 'two_jet':
+                if not (njet[0] >= 2): continue
+            if args.region == 'one_jet':
+                if not (njet[0] == 1): continue
+            if args.region == 'zero_jet':
+                if not (njet[0] == 0): continue
+
+            event_yield+=1
+
+            # get two jets in total
+            ej = sorted(ej, key=lambda x: x[0], reverse=True)
+            if (len(ej) > 2):
+                for j in range(len(ej) - 2): ej.pop()
+            elif (len(ej) < 2):
+                for j in range(2 - len(ej)): ej.append([-9999] * 5)
+
+            Jets_PT_Lead[0] = ej[0][0]
+            Jets_Eta_Lead[0]= ej[0][1]
+            DeltaPhi_mumuj1[0] = ej[0][2]
+            Jets_PT_Sub[0] = ej[1][0]
+            Jets_Eta_Sub[0]= ej[1][1]
+            DeltaPhi_mumuj2[0] = ej[1][2]
+
+            # get the 4 momentum of dejet
+            j1j2 = ROOT.TLorentzVector()
+            if(njet[0] >= 2):
+                Jets_1 = ROOT.TLorentzVector()
+                Jets_2 = ROOT.TLorentzVector()
+                Jets_1.SetPtEtaPhiE(ej[0][0], ej[0][1], ej[0][3], ej[0][4])
+                Jets_2.SetPtEtaPhiE(ej[1][0], ej[1][1], ej[1][3], ej[1][4])
+                j1j2 = Jets_1+Jets_2
+
+            for j in range(2): # erase the info of jet phi and jet energy
+                ej[j][3], ej[j][4] = -9999, -9999
+
+            #if (njet[0] == 0): 
+            #    ej = [[-9999, -9999, -9999, -9999, -9999],[-9999, -9999, -9999, -9999, -9999]]
+            #elif (njet[0] == 1): 
+            #    DeltaPhi_mumuj1[0] = ROOT.TVector2.Phi_mpi_pi(Jets_Phi_Lead[0] - Z_Phi_FSR[0])
+            #    DeltaPhi_mumuj2[0] = -9999
+            #    ej = [[Jets_PT_Lead[0], Jets_Eta_Lead[0], DeltaPhi_mumuj1[0], -9999, -9999],[-9999, -9999, -9999, -9999, -9999]]
+            #else:
+            #    DeltaPhi_mumuj1[0] = ROOT.TVector2.Phi_mpi_pi(Jets_Phi_Lead[0] - Z_Phi_FSR[0])
+            #    DeltaPhi_mumuj2[0] = ROOT.TVector2.Phi_mpi_pi(Jets_Phi_Sub[0] - Z_Phi_FSR[0])
+            #    ej = [[Jets_PT_Lead[0], Jets_Eta_Lead[0], DeltaPhi_mumuj1[0], -9999, -9999],[Jets_PT_Sub[0], Jets_Eta_Sub[0], DeltaPhi_mumuj2[0], -9999, -9999]]
+
 
             # dijet
             dj = []
             if (njet[0] >= 2): 
-                DeltaPhi_mumujj[0] = ROOT.TVector2.Phi_mpi_pi(Jets_Phi_jj[0]-Z_Phi_FSR[0])
-                jj = ROOT.TLorentzVector()
-                jj.SetPtEtaPhiM(Jets_PT_jj[0], Jets_Eta_jj[0], Jets_Phi_jj[0], Jets_Minv_jj[0])
-                Jets_Y_jj[0] = jj.Rapidity()
+                #jj = ROOT.TLorentzVector()
+                #jj.SetPtEtaPhiM(Jets_PT_jj[0], Jets_Eta_jj[0], Jets_Phi_jj[0], Jets_Minv_jj[0])
+                Jets_PT_jj[0] = j1j2.Pt()
+                Jets_Y_jj[0] = j1j2.Rapidity()
+                DeltaPhi_mumujj[0] = ROOT.TVector2.Phi_mpi_pi(j1j2.Phi()-Z_Phi_FSR[0])
+                Jets_Minv_jj[0] = j1j2.M()
                 dj.append([Jets_PT_jj[0], Jets_Y_jj[0], DeltaPhi_mumujj[0], Jets_Minv_jj[0]])
                 
             else: 
                 dj.append([-9999] * 4)
-                DeltaPhi_mumujj[0] = -9999
+                Jets_PT_jj[0], Jets_Y_jj[0], DeltaPhi_mumujj[0], Jets_Minv_jj[0] = -9999, -9999, -9999, -9999
+
+            # mets
+            eM = []
+            eM.append([metFinalTrk[0] if args.region == 'two_jet' else -9999, -9999])
 
             # dimuon
             dm = []
@@ -242,9 +306,9 @@ def process_arrays(args):
             
             # weight
             if args.section == -1:
-                weight[0] = Weight_Global[0]
+                weight[0] = Weight_Global[0]*(1 - (EventInfo_ChannelNumber[0] in [364100, 364101, 364103, 364104, 364106])*(Truth_Boson_Mass[0] >= 100000) - (EventInfo_ChannelNumber[0] in [366300, 366301, 366303, 366304, 366306])*(Truth_Boson_Mass[0] < 100000))
             else:
-                wt.append(Weight_Global[0])
+                wt.append(Weight_Global[0]*(1 - (EventInfo_ChannelNumber[0] in [364100, 364101, 364103, 364104, 364106])*(Truth_Boson_Mass[0] >= 100000) - (EventInfo_ChannelNumber[0] in [366300, 366301, 366303, 366304, 366306])*(Truth_Boson_Mass[0] < 100000)))
 
         if args.section == -1:
             outtree.Fill()

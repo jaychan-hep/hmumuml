@@ -58,6 +58,7 @@ def apply_weight(categories,region,tsfs,tsfs_VBF=[], VBF=True):
         for appinput in os.listdir(AppInputsdir):
             if not appinput.endswith('_%s.root' % (region)):
                 continue
+            print appinput
             jets=np.load(npydir+'/'+appinput.replace('.root','_-1_jets.npy'))
             if [jets.shape[1],jets.shape[2]]!=[2,5]: 
                 print 'ERROR: Dimension of jets npy is not correct!!'
@@ -129,6 +130,8 @@ def apply_weight(categories,region,tsfs,tsfs_VBF=[], VBF=True):
             Jets_Minv_jj = array('f', [0])
 
             weight=array('d',[0])
+            EventWeight_MCEventWeight = array('f', [0])
+
             intree.SetBranchAddress('eventNumber', eventNumber)
             intree.SetBranchAddress('m_mumu', m_mumu)
             intree.SetBranchAddress('njet', njet)
@@ -155,6 +158,20 @@ def apply_weight(categories,region,tsfs,tsfs_VBF=[], VBF=True):
             intree.SetBranchAddress('Jets_Minv_jj', Jets_Minv_jj)
 
             intree.SetBranchAddress('weight', weight)
+            intree.SetBranchAddress('EventWeight_MCEventWeight', EventWeight_MCEventWeight)
+
+            # outfile
+            if not os.path.isdir('outputs'):
+                print 'INFO: Creating new folder: \"outputs\"'
+                os.makedirs("outputs")
+            if not os.path.isdir('outputs/model_%s' %(region)):
+                print 'INFO: Creating model container:  model_%s' %(region)
+                os.makedirs('outputs/model_%s' %(region))
+            if not os.path.isdir('outputs/model_%s/%s' %(region,category)):
+                print 'INFO: Creating in the model container a new category:  %s' %(category)
+                os.makedirs('outputs/model_%s/%s' %(region,category))
+
+            outfile = ROOT.TFile('outputs/model_%s/%s/%s' % (region,category,appinput), 'RECREATE')
 
             # output tree
             bdt_score = array('f', [0])
@@ -162,7 +179,8 @@ def apply_weight(categories,region,tsfs,tsfs_VBF=[], VBF=True):
             bdt_score_t = array('f', [0])
             if VBF: bdt_score_VBF_t = array('f', [0])
             outtree = ROOT.TTree('test', 'test')
-            outtree.SetDirectory(0)
+            outtree.SetAutoSave(10000)
+            #outtree.SetDirectory(0)
             outtree.Branch('eventNumber', eventNumber,'eventNumber/l')
             outtree.Branch('m_mumu', m_mumu,'m_mumu/F')
             outtree.Branch('njet', njet, 'njet/i')
@@ -191,6 +209,7 @@ def apply_weight(categories,region,tsfs,tsfs_VBF=[], VBF=True):
             outtree.Branch('Muons_Minv_MuMu_Sigma', Muons_Minv_MuMu_Sigma, 'Muons_Minv_MuMu_Sigma/F')
 
             outtree.Branch('weight', weight, 'weight/D')
+            outtree.Branch('EventWeight_MCEventWeight', EventWeight_MCEventWeight, 'EventWeight_MCEventWeight/F')
             outtree.Branch('bdt_score', bdt_score, 'bdt_score/F')
             if VBF: outtree.Branch('bdt_score_VBF', bdt_score_VBF, 'bdt_score_VBF/F')
             outtree.Branch('bdt_score_t', bdt_score_t, 'bdt_score_t/F')
@@ -210,21 +229,8 @@ def apply_weight(categories,region,tsfs,tsfs_VBF=[], VBF=True):
                     bdt_score_VBF_t[0] = 1 - scores_VBF_t[tag][i]
                 outtree.Fill()
 
-            if not os.path.isdir('outputs'):
-                print 'INFO: Creating new folder: \"outputs\"'
-                os.makedirs("outputs")
-            if not os.path.isdir('outputs/model_%s' %(region)):
-                print 'INFO: Creating model container:  model_%s' %(region)
-                os.makedirs('outputs/model_%s' %(region))
-            if not os.path.isdir('outputs/model_%s/%s' %(region,category)):
-                print 'INFO: Creating in the model container a new category:  %s' %(category)
-                os.makedirs('outputs/model_%s/%s' %(region,category))
-
-
-            outfile = ROOT.TFile('outputs/model_%s/%s/%s' % (region,category,appinput), 'RECREATE')
             outtree.Write()
             outfile.Close()
-
             infile.Close()
 
         print 'Combining all the root-files in the category:  ', category
@@ -241,6 +247,7 @@ def main():
 
     sigs = ['ggF','VBF','VH','ttH']
     bkgs = ['data']
+    mcs = ['Z', 'ttbar', 'diboson', 'stop']
 
     region = args.region
 
@@ -267,9 +274,9 @@ def main():
         tsfs.append(tsf)
 
     if VBF:
-        apply_weight(sigs+bkgs, region, tsfs, tsfs_VBF=tsfs_VBF)
+        apply_weight(mcs, region, tsfs, tsfs_VBF=tsfs_VBF)
     else:
-        apply_weight(sigs+bkgs, region, tsfs, VBF=False)
+        apply_weight(mcs, region, tsfs, VBF=False)
 
     print '------------------------------------------------------------------------------'
     print 'Finishing the process'

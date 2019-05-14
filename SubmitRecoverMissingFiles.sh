@@ -21,9 +21,9 @@ region=$4
 category=$5
 
 cd $initdir
-source ./setup_pcuw.sh
+source ./setup_lxplus.sh
 echo python process_arrays.py -n $filename -s $runsection -r $region -c $category
-if [[ "$category" == *data* ]]; then
+if [[ "$category" == *data* || "$category" == *Z* ]]; then
 python process_arrays.py -n $filename -s $runsection -r $region -c $category -d
 else
 python process_arrays.py -n $filename -s $runsection -r $region -c $category

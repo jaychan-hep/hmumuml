@@ -6,13 +6,13 @@
 #
 #  8.22.2018
 #
-#  Modified from ttHyy XGBosst anaylsis codes
+#
 #
 #
 #
 #
 import os
-import ROOT
+from ROOT import *
 from argparse import ArgumentParser
 from math import sqrt, log
 import math
@@ -55,11 +55,20 @@ def calc_sig(sig, bkg,s_err,b_err):
 
   return significance, uncert
 
-def hist_integral(hist,i,j,k,l):
-    err = ROOT.Double()
+#def hist_integral(hist,i,j):
+#    err = Double()
+#    if i>j:
+#        n=0
+#        err=0
+#    else: n = hist.IntegralAndError(i,j,err)
+#    return n, err
+
+def hist_integral(hist,i,j,k=-999,l=-999):
+    err = Double()
     if i>j or k>l:
         n=0
         err=0
+    elif k == -999 and l == -999: n = hist.IntegralAndError(i,j,err)
     else: n = hist.IntegralAndError(i,j,k,l,err)
     return n, err
 
@@ -80,27 +89,124 @@ def sum_z(zs):
     sumu=sqrt(sumu)/sumz if sumz != 0 else 0
     return sumz,sumu
 
+def fit_BDT(hist, fitboundary, fitbin, function, fillbin, sf):
+
+    n_events = hist.Integral()
+
+    bdt = RooRealVar("bdt","bdt",fitboundary,1)
+
+    #lam = RooRealVar("lam", "lam", 10, -100, 20)
+    a = RooRealVar("a", "a", -100, 100)
+    b = RooRealVar("b", "b", -100, 100)
+    c = RooRealVar("c", "c", -100, 100)
+    d = RooRealVar("d", "d", -100, 100)
+    e = RooRealVar("e", "e", -100, 100)
+    f = RooRealVar("f", "f", -100, 100)
+
+    pdf = {}
+    pdf['power'] = RooGenericPdf("pdf","PDF for BDT distribution", "@0**@1", RooArgList(bdt, a)) #power
+
+    # EPoly Family
+    pdf['Exp'] = RooGenericPdf("pdf","PDF for BDT distribution", "exp(@1*@0)", RooArgList(bdt, a))
+    pdf['Epoly2'] = RooGenericPdf("pdf","PDF for BDT distribution", "exp(@1*@0+@2*@0**2)", RooArgList(bdt, a, b))
+    pdf['Epoly3'] = RooGenericPdf("pdf","PDF for BDT distribution", "exp(@1*@0+@2*@0**2+@3*@0**3)", RooArgList(bdt, a, b, c))
+    pdf['Epoly4'] = RooGenericPdf("pdf","PDF for BDT distribution", "exp(@1*@0+@2*@0**2+@3*@0**3+@4*@0**4)", RooArgList(bdt, a, b, c, d))
+    pdf['Epoly5'] = RooGenericPdf("pdf","PDF for BDT distribution", "exp(@1*@0+@2*@0**2+@3*@0**3+@4*@0**4+@5*@0**5)", RooArgList(bdt, a, b, c, d, e))
+    pdf['Epoly6'] = RooGenericPdf("pdf","PDF for BDT distribution", "exp(@1*@0+@2*@0**2+@3*@0**3+@4*@0**4+@5*@0**5+@6*@0**6)", RooArgList(bdt, a, b, c, d, e, f))
+
+    #pdf['Poly6'] = RooGenericPdf("pdf","PDF for BDT distribution", "1+@1*@0+@2*@0**2+@3*@0**3+@4*@0**4+@5*@0**5+@6*@0**6", RooArgList(bdt, a, b, c, d, e, f))
+    #pdf['ExPoly6'] = RooGenericPdf("pdf","PDF for BDT distribution", "exp(-@0*@1)*(1+@2*@0+@3*@0**2+@4*@0**3+@5*@0**4+@6*@0**5+@7*@0**6)", RooArgList(bdt, lam, a, b, c, d, e, f))
+
+    data = RooDataHist("dh", "dh", RooArgList(bdt), hist)
+    #data.Print("all")
+
+
+    pdf[function].fitTo(data, RooFit.Verbose(False), RooFit.PrintLevel(-1))
+
+    #lam.Print()
+    a.Print()
+    b.Print()
+    c.Print()
+    d.Print()
+    e.Print()
+    f.Print()
+
+    frame = bdt.frame()
+    data.plotOn(frame)
+    pdf[function].plotOn(frame)
+
+    frame.Draw()
+
+    dof = {'power': 2, 'Exp': 2, 'Epoly2': 3, 'Epoly3': 4, 'Epoly4': 5, 'Epoly5': 6, 'Epoly6': 7}
+    reduced_chi_square = frame.chiSquare(dof[function])
+    probability = TMath.Prob(frame.chiSquare(dof[function]) * (fitbin - dof[function]), fitbin - dof[function])
+    print 'chi square:', reduced_chi_square
+    print 'probability: ', probability
+
+    #raw_input('Press enter to continue')
+
+    # fill the fitted pdf into a histogram
+    hfit = TH1F('hfit', 'hfit', fillbin, fitboundary, 1.)
+    pdf[function].fillHistogram(hfit, RooArgList(bdt), n_events*sf)
+
+    return hfit
+
+
 def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nvbf, floatB, n_fold, fold, earlystop):
 
-    f_sig = ROOT.TFile('outputs/model_%s/sig.root' % (region))
+    # get inputs
+    f_sig = TFile('outputs/model_%s/sig.root' % (region))
     t_sig = f_sig.Get('test')
  
-    f_bkg = ROOT.TFile('outputs/model_%s/bkg.root' % (region))
+    f_bkg = TFile('outputs/model_%s/bkg.root' % (region))
     t_bkg = f_bkg.Get('test')
 
-    h_sig=ROOT.TH2F('h_sig','h_sig',nscanvbf,0,1,nscan,0,1)
-    h_bkg=ROOT.TH2F('h_bkg','h_bkg',nscanvbf,0,1,nscan,0,1)
+    h_sig=TH1F('h_sig','h_sig',nscanvbf,0,1)
+    h_sig_raw=TH2F('h_sig_raw','h_sig_raw',nscanvbf,0,1,nscan,0,1)
 
+    h_sig_raw.Sumw2()
     h_sig.Sumw2()
+
+    # filling signal histograms
+    t_sig.Draw("bdt_score%s:bdt_score_VBF%s>>h_sig_raw"%('_t' if transform else '', '_t' if transform else ''),"weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
+    t_sig.Draw("bdt_score_VBF%s>>h_sig"%('_t' if transform else ''),"weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1,n_fold,fold if n_fold != 1 else 1))
+
+
+    # prepare some settings for bkg histograms
+    fitboundary = 0.5
+    nbin_right = int(nscanvbf*(1-fitboundary))
+    nbin_left = int(nscanvbf*fitboundary)
+    fitbin = nbin_right  #100
+
+    h_bkg_raw = TH2F('h_bkg_raw', 'h_bkg_raw', nscanvbf, 0., 1., nscan, 0., 1.)
+    h_bkg_right = TH1F('h_bkg_right', 'h_bkg_right', fitbin, fitboundary, 1.)
+    h_bkg_left = TH1F('h_bkg_left', 'h_bkg_left', nbin_left, 0., fitboundary)
+    h_bkg_raw.Sumw2()
+    h_bkg_right.Sumw2()
+    h_bkg_left.Sumw2()
+
+    # filling bkg histograms
+    t_bkg.Draw("bdt_score%s:bdt_score_VBF%s>>h_bkg_raw"%('_t' if transform else '','_t' if transform else ''),"weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
+    t_bkg.Draw("bdt_score_VBF%s>>h_bkg_right"%('_t' if transform else ''),"weight*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold,fold if n_fold != 1 else 1))
+    t_bkg.Draw("bdt_score_VBF%s>>h_bkg_left"%('_t' if transform else ''),"weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(bdt_score_VBF_t<%f&&bdt_score_VBF_t>=0&&(eventNumber%%%d!=%d)))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1,fitboundary, n_fold,fold if n_fold != 1 else 1))
+
+    sf = (n_fold/(n_fold-1.) if n_fold != 1 else 1)*0.2723
+
+    # fit a function to the bkg BDT distribution!
+    h_bkg_right = fit_BDT(h_bkg_right, fitboundary, fitbin, 'Epoly2', nbin_right, sf)
+    #h_bkg_right.Scale(sf) # uncomment this line (and comment out the line above) to use the original histogram instead of the fitted histogram
+
+
+    # merge the non-fitted histogram with the fitted histogram
+    h_bkg = TH1F('h_bkg','h_bkg',nscanvbf,0.,1.)
     h_bkg.Sumw2()
-
-    t_sig.Draw("bdt_score%s:bdt_score_VBF%s>>h_sig"%('_t' if transform else '', '_t' if transform else ''),"weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.),n_fold,fold))
-    t_bkg.Draw("bdt_score%s:bdt_score_VBF%s>>h_bkg"%('_t' if transform else '','_t' if transform else ''),"weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.),n_fold,fold))
-
-
+    h_bkg_list = TList()
+    h_bkg_list.Add(h_bkg_left)
+    h_bkg_list.Add(h_bkg_right)
+    h_bkg.Merge(h_bkg_list)
 
     #================================================
-    # categorization for VBF categories
+    # categorization for VBF categories. Will scan all of the possibilities of the BDT boundaries and get the one that gives the largest significance
 
     jv1max, jv2max, jv3max, jv4max, jv5max, jv6max, jv7max, jv8max, jv9max, jv10max, jv11max, jv12max, jv13max, jv14max, jv15max, svmax = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     print 'INFO: scanning all of the possibilities for VBF categories...'
@@ -124,12 +230,12 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
                 jv1max___, jv3max___, svmax_1_2, svmax_3_4 = 0, 0, 0, 0
                 jv1stop = 0
                 for jv1 in range(vb, jv2+1 if nvbf >= 16 else vb+1):
-                    nsigv1, dsigv1 = hist_integral(h_sig, vb, jv1-1, 1, nscan)
-                    nbkgv1, dbkgv1 = hist_integral(h_bkg, vb, jv1-1, 1, nscan)
+                    nsigv1, dsigv1 = hist_integral(h_sig, vb, jv1-1)
+                    nbkgv1, dbkgv1 = hist_integral(h_bkg, vb, jv1-1)
                     if nvbf >= 16 and nbkgv1 < minN: continue
                     sv1, uv1 = calc_sig(nsigv1, nbkgv1, dsigv1, dbkgv1)
-                    nsigv2, dsigv2 = hist_integral(h_sig, jv1, jv2-1, 1, nscan)
-                    nbkgv2, dbkgv2 = hist_integral(h_bkg, jv1, jv2-1, 1, nscan)
+                    nsigv2, dsigv2 = hist_integral(h_sig, jv1, jv2-1)
+                    nbkgv2, dbkgv2 = hist_integral(h_bkg, jv1, jv2-1)
                     if nvbf >= 15 and nbkgv2 < minN: break
                     sv2, uv2 = calc_sig(nsigv2, nbkgv2, dsigv2, dbkgv2)
                     sv_1_2, _ = sum_z([[sv1,uv1],[sv2,uv2]])
@@ -145,12 +251,12 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
 
                 jv3stop = 0
                 for jv3 in range(jv2, jv4+1 if nvbf >= 14 else vb+1):
-                    nsigv3, dsigv3 = hist_integral(h_sig, jv2, jv3-1, 1, nscan)
-                    nbkgv3, dbkgv3 = hist_integral(h_bkg, jv2, jv3-1, 1, nscan)
+                    nsigv3, dsigv3 = hist_integral(h_sig, jv2, jv3-1)
+                    nbkgv3, dbkgv3 = hist_integral(h_bkg, jv2, jv3-1)
                     if nvbf >= 14 and nbkgv3 < minN: continue
                     sv3, uv3 = calc_sig(nsigv3, nbkgv3, dsigv3, dbkgv3)
-                    nsigv4, dsigv4 = hist_integral(h_sig, jv3, jv4-1, 1, nscan)
-                    nbkgv4, dbkgv4 = hist_integral(h_bkg, jv3, jv4-1, 1, nscan)
+                    nsigv4, dsigv4 = hist_integral(h_sig, jv3, jv4-1)
+                    nbkgv4, dbkgv4 = hist_integral(h_bkg, jv3, jv4-1)
                     if nvbf >= 13 and nbkgv4 < minN: break
                     sv4, uv4 = calc_sig(nsigv4, nbkgv4, dsigv4, dbkgv4)
                     sv_3_4, _ = sum_z([[sv3,uv3],[sv4,uv4]])
@@ -181,12 +287,12 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
                 jv5max___, jv7max___, svmax_5_6, svmax_7_8 = 0, 0, 0, 0
                 jv5stop = 0
                 for jv5 in range(jv4, jv6+1 if nvbf >= 12 else vb+1):
-                    nsigv5, dsigv5 = hist_integral(h_sig, jv4, jv5-1, 1, nscan)
-                    nbkgv5, dbkgv5 = hist_integral(h_bkg, jv4, jv5-1, 1, nscan)
+                    nsigv5, dsigv5 = hist_integral(h_sig, jv4, jv5-1)
+                    nbkgv5, dbkgv5 = hist_integral(h_bkg, jv4, jv5-1)
                     if nvbf >= 12 and nbkgv5 < minN: continue
                     sv5, uv5 = calc_sig(nsigv5, nbkgv5, dsigv5, dbkgv5)
-                    nsigv6, dsigv6 = hist_integral(h_sig, jv5, jv6-1, 1, nscan)
-                    nbkgv6, dbkgv6 = hist_integral(h_bkg, jv5, jv6-1, 1, nscan)
+                    nsigv6, dsigv6 = hist_integral(h_sig, jv5, jv6-1)
+                    nbkgv6, dbkgv6 = hist_integral(h_bkg, jv5, jv6-1)
                     if nvbf >= 11 and nbkgv6 < minN: break
                     sv6, uv6 = calc_sig(nsigv6, nbkgv6, dsigv6, dbkgv6)
                     sv_5_6, _ = sum_z([[sv5,uv5],[sv6,uv6]])
@@ -202,12 +308,12 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
 
                 jv7stop = 0
                 for jv7 in range(jv6, jv8+1 if nvbf >= 10 else vb+1):
-                    nsigv7, dsigv7 = hist_integral(h_sig, jv6, jv7-1, 1, nscan)
-                    nbkgv7, dbkgv7 = hist_integral(h_bkg, jv6, jv7-1, 1, nscan)
+                    nsigv7, dsigv7 = hist_integral(h_sig, jv6, jv7-1)
+                    nbkgv7, dbkgv7 = hist_integral(h_bkg, jv6, jv7-1)
                     if nvbf >= 10 and nbkgv7 < minN: continue
                     sv7, uv7 = calc_sig(nsigv7, nbkgv7, dsigv7, dbkgv7)
-                    nsigv8, dsigv8 = hist_integral(h_sig, jv7, jv8-1, 1, nscan)
-                    nbkgv8, dbkgv8 = hist_integral(h_bkg, jv7, jv8-1, 1, nscan)
+                    nsigv8, dsigv8 = hist_integral(h_sig, jv7, jv8-1)
+                    nbkgv8, dbkgv8 = hist_integral(h_bkg, jv7, jv8-1)
                     if nvbf >= 9 and nbkgv8 < minN: break
                     sv8, uv8 = calc_sig(nsigv8, nbkgv8, dsigv8, dbkgv8)
                     sv_7_8, _ = sum_z([[sv7,uv7],[sv8,uv8]])
@@ -255,12 +361,12 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
                 jv9max___, jv11max___, svmax_9_10, svmax_11_12 = 0, 0, 0, 0
                 jv9stop = 0
                 for jv9 in range(jv8, jv10+1 if nvbf >= 8 else vb+1):
-                    nsigv9, dsigv9 = hist_integral(h_sig, jv8, jv9-1, 1, nscan)
-                    nbkgv9, dbkgv9 = hist_integral(h_bkg, jv8, jv9-1, 1, nscan)
+                    nsigv9, dsigv9 = hist_integral(h_sig, jv8, jv9-1)
+                    nbkgv9, dbkgv9 = hist_integral(h_bkg, jv8, jv9-1)
                     if nvbf >= 8 and nbkgv9 < minN: continue
                     sv9, uv9 = calc_sig(nsigv9, nbkgv9, dsigv9, dbkgv9)
-                    nsigv10, dsigv10 = hist_integral(h_sig, jv9, jv10-1, 1, nscan)
-                    nbkgv10, dbkgv10 = hist_integral(h_bkg, jv9, jv10-1, 1, nscan)
+                    nsigv10, dsigv10 = hist_integral(h_sig, jv9, jv10-1)
+                    nbkgv10, dbkgv10 = hist_integral(h_bkg, jv9, jv10-1)
                     if nvbf >= 7 and nbkgv10 < minN: break
                     sv10, uv10 = calc_sig(nsigv10, nbkgv10, dsigv10, dbkgv10)
                     sv_9_10, _ = sum_z([[sv9,uv9],[sv10,uv10]])
@@ -276,12 +382,12 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
 
                 jv11stop = 0
                 for jv11 in range(jv10, jv12+1 if nvbf >= 6 else vb+1):
-                    nsigv11, dsigv11 = hist_integral(h_sig, jv10, jv11-1, 1, nscan)
-                    nbkgv11, dbkgv11 = hist_integral(h_bkg, jv10, jv11-1, 1, nscan)
+                    nsigv11, dsigv11 = hist_integral(h_sig, jv10, jv11-1)
+                    nbkgv11, dbkgv11 = hist_integral(h_bkg, jv10, jv11-1)
                     if nvbf >= 6 and nbkgv11 < minN: continue
                     sv11, uv11 = calc_sig(nsigv11, nbkgv11, dsigv11, dbkgv11)
-                    nsigv12, dsigv12 = hist_integral(h_sig, jv11, jv12-1, 1, nscan)
-                    nbkgv12, dbkgv12 = hist_integral(h_bkg, jv11, jv12-1, 1, nscan)
+                    nsigv12, dsigv12 = hist_integral(h_sig, jv11, jv12-1)
+                    nbkgv12, dbkgv12 = hist_integral(h_bkg, jv11, jv12-1)
                     if nvbf >= 5 and nbkgv12 < minN: break
                     sv12, uv12 = calc_sig(nsigv12, nbkgv12, dsigv12, dbkgv12)
                     sv_11_12, _ = sum_z([[sv11,uv11],[sv12,uv12]])
@@ -312,12 +418,12 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
                 jv13max___, jv15max___, svmax_13_14, svmax_15_16 = 0, 0, 0, 0
                 jv13stop = 0
                 for jv13 in range(jv12, jv14+1 if nvbf >= 4 else vb+1):
-                    nsigv13, dsigv13 = hist_integral(h_sig, jv12, jv13-1, 1, nscan)
-                    nbkgv13, dbkgv13 = hist_integral(h_bkg, jv12, jv13-1, 1, nscan)
+                    nsigv13, dsigv13 = hist_integral(h_sig, jv12, jv13-1)
+                    nbkgv13, dbkgv13 = hist_integral(h_bkg, jv12, jv13-1)
                     if nvbf >= 4 and nbkgv13 < minN: continue
                     sv13, uv13 = calc_sig(nsigv13, nbkgv13, dsigv13, dbkgv13)
-                    nsigv14, dsigv14 = hist_integral(h_sig, jv13, jv14-1, 1, nscan)
-                    nbkgv14, dbkgv14 = hist_integral(h_bkg, jv13, jv14-1, 1, nscan)
+                    nsigv14, dsigv14 = hist_integral(h_sig, jv13, jv14-1)
+                    nbkgv14, dbkgv14 = hist_integral(h_bkg, jv13, jv14-1)
                     if nvbf >= 3 and nbkgv14 < minN: break
                     sv14, uv14 = calc_sig(nsigv14, nbkgv14, dsigv14, dbkgv14)
                     sv_13_14, _ = sum_z([[sv13,uv13],[sv14,uv14]])
@@ -333,12 +439,12 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
 
                 jv15stop = 0
                 for jv15 in range(jv14, nscanvbf+1 if nvbf >= 2 else vb+1):
-                    nsigv15, dsigv15 = hist_integral(h_sig, jv14, jv15-1, 1, nscan)
-                    nbkgv15, dbkgv15 = hist_integral(h_bkg, jv14, jv15-1, 1, nscan)
+                    nsigv15, dsigv15 = hist_integral(h_sig, jv14, jv15-1)
+                    nbkgv15, dbkgv15 = hist_integral(h_bkg, jv14, jv15-1)
                     if nvbf >= 2 and nbkgv15 < minN: continue
                     sv15, uv15 = calc_sig(nsigv15, nbkgv15, dsigv15, dbkgv15)
-                    nsigv16, dsigv16 = hist_integral(h_sig, jv15, nscanvbf, 1, nscan)
-                    nbkgv16, dbkgv16 = hist_integral(h_bkg, jv15, nscanvbf, 1, nscan)
+                    nsigv16, dsigv16 = hist_integral(h_sig, jv15, nscanvbf)
+                    nbkgv16, dbkgv16 = hist_integral(h_bkg, jv15, nscanvbf)
                     if nbkgv16 < minN: break
                     sv16, uv16 = calc_sig(nsigv16, nbkgv16, dsigv16, dbkgv16)
                     sv_15_16, _ = sum_z([[sv15,uv15],[sv16,uv16]])
@@ -408,6 +514,49 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
     #=================================================
     # categorization for general higgs categories
 
+    del h_sig
+    del h_bkg
+    del h_bkg_left
+    del h_bkg_right
+
+    h_sig=TH1F('h_sig','h_sig',nscan,0,1)
+    #h_bkg=TH1F('h_bkg','h_bkg',nscan,0,1)
+
+    h_sig.Sumw2()
+    #h_bkg.Sumw2()
+
+    t_sig.Draw("bdt_score%s>>h_sig"%('_t' if transform else ''),"weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d)&&(bdt_score_VBF%s<%f))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1,n_fold,fold if n_fold != 1 else 1, '_t' if transform else '', (vb-1.)/nscanvbf))
+    #t_bkg.Draw("bdt_score%s>>h_bkg"%('_t' if transform else ''),"weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d)&&(bdt_score_VBF%s<%f))"%(n_fold/(n_fold-1.),n_fold,fold, '_t' if transform else '', (vb-1.)/nscanvbf))
+
+
+    fitboundary = 0.5
+    nbin_right = int(nscan*(1-fitboundary))
+    nbin_left = int(nscan*fitboundary)
+    fitbin = nbin_right  #100
+
+    h_bkg_right = TH1F('h_bkg_right', 'h_bkg_right', fitbin, fitboundary, 1.)
+    h_bkg_left = TH1F('h_bkg_left', 'h_bkg_left', nbin_left, 0., fitboundary)
+    h_bkg_right.Sumw2()
+    h_bkg_left.Sumw2()
+    t_bkg.Draw("bdt_score%s>>h_bkg_right"%('_t' if transform else ''),"weight*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d)&&(bdt_score_VBF%s<%f&&bdt_score%s>=%f))"%(n_fold,fold if n_fold != 1 else 1, '_t' if transform else '', (vb-1.)/nscanvbf, '_t' if transform else '', fitboundary))
+    t_bkg.Draw("bdt_score%s>>h_bkg_left"%('_t' if transform else ''),"weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(bdt_score_t<%f&&bdt_score_t>=0)&&(eventNumber%%%d!=%d)&&(bdt_score_VBF%s<%f))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1,fitboundary, n_fold,fold if n_fold != 1 else 1, '_t' if transform else '', (vb-1.)/nscanvbf))
+
+
+    sf = (n_fold/(n_fold-1.) if n_fold != 1 else 1)*0.2723
+    #h_bkg_right = fit_BDT(h_bkg_right, fitboundary, fitbin, 'Epoly2', nbin_right, sf)
+    h_bkg_right.Scale(sf)
+
+    h_bkg = TH1F('h_bkg','h_bkg',nscan,0.,1.)
+    h_bkg.Sumw2()
+
+    h_bkg_list = TList()
+    h_bkg_list.Add(h_bkg_left)
+    h_bkg_list.Add(h_bkg_right)
+    #h_bkg_list.Print()
+    h_bkg.Merge(h_bkg_list)
+
+
+
 
     print 'INFO: scanning all of the possibilities...'
     start_time = time.time()
@@ -433,15 +582,15 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
                 j1stop = 0
                 for j1 in range(1, j2+1 if nbin >= 16 else 2):
                     if not (floatB and nbin == 16):
-                        nsig1, dsig1 = hist_integral(h_sig, 1, vb-1, 1, j1-1)
-                        nbkg1, dbkg1 = hist_integral(h_bkg, 1, vb-1, 1, j1-1)
+                        nsig1, dsig1 = hist_integral(h_sig, 1, j1-1)
+                        nbkg1, dbkg1 = hist_integral(h_bkg, 1, j1-1)
                         if nbin >= 16 and nbkg1 < minN: continue
                         s1, u1 = calc_sig(nsig1, nbkg1, dsig1, dbkg1)
                     else:
                         s1, u1 = 0, 0
                     if not (floatB and nbin == 15):
-                        nsig2, dsig2 = hist_integral(h_sig, 1, vb-1, j1, j2-1)
-                        nbkg2, dbkg2 = hist_integral(h_bkg, 1, vb-1, j1, j2-1)
+                        nsig2, dsig2 = hist_integral(h_sig, j1, j2-1)
+                        nbkg2, dbkg2 = hist_integral(h_bkg, j1, j2-1)
                         if nbin >= 15 and nbkg2 < minN: break
                         s2, u2 = calc_sig(nsig2, nbkg2, dsig2, dbkg2)
                     else:
@@ -460,15 +609,15 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
                 j3stop = 0
                 for j3 in range(j2, j4+1 if nbin >= 14 else 2):
                     if not (floatB and nbin == 14):
-                        nsig3, dsig3 = hist_integral(h_sig, 1, vb-1, j2, j3-1)
-                        nbkg3, dbkg3 = hist_integral(h_bkg, 1, vb-1, j2, j3-1)
+                        nsig3, dsig3 = hist_integral(h_sig, j2, j3-1)
+                        nbkg3, dbkg3 = hist_integral(h_bkg, j2, j3-1)
                         if nbin >= 14 and nbkg3 < minN: continue
                         s3, u3 = calc_sig(nsig3, nbkg3, dsig3, dbkg3)
                     else:
                         s3, u3 = 0, 0
                     if not (floatB and nbin == 13):
-                        nsig4, dsig4 = hist_integral(h_sig, 1, vb-1, j3, j4-1)
-                        nbkg4, dbkg4 = hist_integral(h_bkg, 1, vb-1, j3, j4-1)
+                        nsig4, dsig4 = hist_integral(h_sig, j3, j4-1)
+                        nbkg4, dbkg4 = hist_integral(h_bkg, j3, j4-1)
                         if nbin >= 13 and nbkg4 < minN: break
                         s4, u4 = calc_sig(nsig4, nbkg4, dsig4, dbkg4)
                     else:
@@ -502,15 +651,15 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
                 j5stop = 0
                 for j5 in range(j4, j6+1 if nbin >= 12 else 2):
                     if not (floatB and nbin == 12):
-                        nsig5, dsig5 = hist_integral(h_sig, 1, vb-1, j4, j5-1)
-                        nbkg5, dbkg5 = hist_integral(h_bkg, 1, vb-1, j4, j5-1)
+                        nsig5, dsig5 = hist_integral(h_sig, j4, j5-1)
+                        nbkg5, dbkg5 = hist_integral(h_bkg, j4, j5-1)
                         if nbin >= 12 and nbkg5 < minN: continue
                         s5, u5 = calc_sig(nsig5, nbkg5, dsig5, dbkg5)
                     else:
                         s5, u5 = 0, 0
                     if not (floatB and nbin == 11):
-                        nsig6, dsig6 = hist_integral(h_sig, 1, vb-1, j5, j6-1)
-                        nbkg6, dbkg6 = hist_integral(h_bkg, 1, vb-1, j5, j6-1)
+                        nsig6, dsig6 = hist_integral(h_sig, j5, j6-1)
+                        nbkg6, dbkg6 = hist_integral(h_bkg, j5, j6-1)
                         if nbin >= 11 and nbkg6 < minN: break
                         s6, u6 = calc_sig(nsig6, nbkg6, dsig6, dbkg6)
                     else:
@@ -529,15 +678,15 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
                 j7stop = 0
                 for j7 in range(j6, j8+1 if nbin >= 10 else 2):
                     if not (floatB and nbin == 10):
-                        nsig7, dsig7 = hist_integral(h_sig, 1, vb-1, j6, j7-1)
-                        nbkg7, dbkg7 = hist_integral(h_bkg, 1, vb-1, j6, j7-1)
+                        nsig7, dsig7 = hist_integral(h_sig, j6, j7-1)
+                        nbkg7, dbkg7 = hist_integral(h_bkg, j6, j7-1)
                         if nbin >= 10 and nbkg7 < minN: continue
                         s7, u7 = calc_sig(nsig7, nbkg7, dsig7, dbkg7)
                     else:
                         s7, u7 = 0, 0
                     if not (floatB and nbin == 9):
-                        nsig8, dsig8 = hist_integral(h_sig, 1, vb-1, j7, j8-1)
-                        nbkg8, dbkg8 = hist_integral(h_bkg, 1, vb-1, j7, j8-1)
+                        nsig8, dsig8 = hist_integral(h_sig, j7, j8-1)
+                        nbkg8, dbkg8 = hist_integral(h_bkg, j7, j8-1)
                         if nbin >= 9 and nbkg8 < minN: break
                         s8, u8 = calc_sig(nsig8, nbkg8, dsig8, dbkg8)
                     else:
@@ -588,15 +737,15 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
                 j9stop = 0
                 for j9 in range(j8, j10+1 if nbin >= 8 else 2):
                     if not (floatB and nbin == 8):
-                        nsig9, dsig9 = hist_integral(h_sig, 1, vb-1, j8, j9-1)
-                        nbkg9, dbkg9 = hist_integral(h_bkg, 1, vb-1, j8, j9-1)
+                        nsig9, dsig9 = hist_integral(h_sig, j8, j9-1)
+                        nbkg9, dbkg9 = hist_integral(h_bkg, j8, j9-1)
                         if nbin >= 8 and nbkg9 < minN: continue
                         s9, u9 = calc_sig(nsig9, nbkg9, dsig9, dbkg9)
                     else:
                         s9, u9 = 0, 0
                     if not (floatB and nbin == 7):
-                        nsig10, dsig10 = hist_integral(h_sig, 1, vb-1, j9, j10-1)
-                        nbkg10, dbkg10 = hist_integral(h_bkg, 1, vb-1, j9, j10-1)
+                        nsig10, dsig10 = hist_integral(h_sig, j9, j10-1)
+                        nbkg10, dbkg10 = hist_integral(h_bkg, j9, j10-1)
                         if nbin >= 7 and nbkg10 < minN: break
                         s10, u10 = calc_sig(nsig10, nbkg10, dsig10, dbkg10)
                     else:
@@ -615,15 +764,15 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
                 j11stop = 0
                 for j11 in range(j10, j12+1 if nbin >= 6 else 2):
                     if not (floatB and nbin == 6):
-                        nsig11, dsig11 = hist_integral(h_sig, 1, vb-1, j10, j11-1)
-                        nbkg11, dbkg11 = hist_integral(h_bkg, 1, vb-1, j10, j11-1)
+                        nsig11, dsig11 = hist_integral(h_sig, j10, j11-1)
+                        nbkg11, dbkg11 = hist_integral(h_bkg, j10, j11-1)
                         if nbin >= 6 and nbkg11 < minN: continue
                         s11, u11 = calc_sig(nsig11, nbkg11, dsig11, dbkg11)
                     else:
                         s11, u11 = 0, 0
                     if not (floatB and nbin == 5):
-                        nsig12, dsig12 = hist_integral(h_sig, 1, vb-1, j11, j12-1)
-                        nbkg12, dbkg12 = hist_integral(h_bkg, 1, vb-1, j11, j12-1)
+                        nsig12, dsig12 = hist_integral(h_sig, j11, j12-1)
+                        nbkg12, dbkg12 = hist_integral(h_bkg, j11, j12-1)
                         if nbin >= 5 and nbkg12 < minN: break
                         s12, u12 = calc_sig(nsig12, nbkg12, dsig12, dbkg12)
                     else:
@@ -657,15 +806,15 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
                 j13stop = 0
                 for j13 in range(j12, j14+1 if nbin >= 4 else 2):
                     if not (floatB and nbin == 4):
-                        nsig13, dsig13 = hist_integral(h_sig, 1, vb-1, j12, j13-1)
-                        nbkg13, dbkg13 = hist_integral(h_bkg, 1, vb-1, j12, j13-1)
+                        nsig13, dsig13 = hist_integral(h_sig, j12, j13-1)
+                        nbkg13, dbkg13 = hist_integral(h_bkg, j12, j13-1)
                         if nbin >= 4 and nbkg13 < minN: continue
                         s13, u13 = calc_sig(nsig13, nbkg13, dsig13, dbkg13)
                     else:
                         s13, u13 = 0, 0
                     if not (floatB and nbin == 3):
-                        nsig14, dsig14 = hist_integral(h_sig, 1, vb-1, j13, j14-1)
-                        nbkg14, dbkg14 = hist_integral(h_bkg, 1, vb-1, j13, j14-1)
+                        nsig14, dsig14 = hist_integral(h_sig, j13, j14-1)
+                        nbkg14, dbkg14 = hist_integral(h_bkg, j13, j14-1)
                         if nbin >= 3 and nbkg14 < minN: break
                         s14, u14 = calc_sig(nsig14, nbkg14, dsig14, dbkg14)
                     else:
@@ -684,12 +833,12 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
                 j15stop = 0
                 for j15 in range(j14, nscan+1 if nbin >= 2 else 2):
                     if not (floatB and nbin == 2):
-                        nsig15, dsig15 = hist_integral(h_sig, 1, vb-1, j14, j15-1)
-                        nbkg15, dbkg15 = hist_integral(h_bkg, 1, vb-1, j14, j15-1)
+                        nsig15, dsig15 = hist_integral(h_sig, j14, j15-1)
+                        nbkg15, dbkg15 = hist_integral(h_bkg, j14, j15-1)
                         if nbin >= 2 and nbkg15 < minN: continue
                         s15, u15 = calc_sig(nsig15, nbkg15, dsig15, dbkg15)
-                    nsig16, dsig16 = hist_integral(h_sig, 1, vb-1, j15, nscan)
-                    nbkg16, dbkg16 = hist_integral(h_bkg, 1, vb-1, j15, nscan)
+                    nsig16, dsig16 = hist_integral(h_sig, j15, nscan)
+                    nbkg16, dbkg16 = hist_integral(h_bkg, j15, nscan)
                     if nbkg16 < minN: break
                     s16, u16 = calc_sig(nsig16, nbkg16, dsig16, dbkg16)
                     s_15_16, _ = sum_z([[s15,u15],[s16,u16]])
@@ -755,15 +904,37 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
     print 'The maximal ggF category significance:  %f' %(smax)
     print 'ggF boundaries: ', boundaries_values
     smaxtot = sqrt(svmax**2+smax**2)
-    print 'Total significane: ', smaxtot
+    print 'Total significane by fit: ', smaxtot
+
+
+    # get the significance estimated from the unfitted histogram
+    nbkg = []
+    for i in range(len(boundaries_VBF)):
+        nbkg.append(hist_integral(h_bkg_raw, boundaries_VBF[i], boundaries_VBF[i+1]-1 if i != len(boundaries_VBF)-1 else nscanvbf+1, 1, nscan+1))
+    for i in range(len(boundaries)):
+        nbkg.append(hist_integral(h_bkg_raw, 1, boundaries_VBF[0]-1, boundaries[i], boundaries[i+1]-1 if i != len(boundaries)-1 else nscan+1))
+
+
+    nsig = []
+    for i in range(len(boundaries_VBF)):
+        nsig.append(hist_integral(h_sig_raw, boundaries_VBF[i], boundaries_VBF[i+1]-1 if i != len(boundaries_VBF)-1 else nscanvbf+1, 1, nscan+1))
+    for i in range(len(boundaries)):
+        nsig.append(hist_integral(h_sig_raw, 1, boundaries_VBF[0]-1, boundaries[i], boundaries[i+1]-1 if i != len(boundaries)-1 else nscan+1))
+
+    zs = [ calc_sig(nsig[i][0], nbkg[i][0], nsig[i][1], nbkg[i][1]) for i in range(len(nsig))]
+    s, u = sum_z(zs)
+
+    print 'Significance from raw event yields in categorization set: ', s
     print '========================================================================='
 
-    return boundaries_VBF, boundaries, smaxtot
+    #raw_input('Press enter to continue')
+
+    return boundaries_VBF, boundaries, smaxtot, s
 
 
 def main():
 
-    ROOT.gROOT.SetBatch(True)
+    gROOT.SetBatch(True)
 
     args=getArgs()
 
@@ -781,8 +952,6 @@ def main():
     nscan=args.nscan
     nscanvbf = args.nscanvbf
 
-    CrossSections={}
-
 
     n_fold = args.nfold
     outs={}
@@ -792,12 +961,14 @@ def main():
         outs[j]['VBF'] = out[0]
         outs[j]['ggF'] = out[1]
         outs[j]['smax'] = out[2]
+        outs[j]['smax_raw'] = out[3]
 
     outs['transform'] = args.transform
     outs['nfold'] = n_fold
     outs['nscanvbf'] = nscanvbf
     outs['nscan'] = nscan
     outs['floatB'] = args.floatB
+    outs['minN'] = args.minN
     #outs['region'] = region
 
     #totalbin=args.nbin+args.vbf

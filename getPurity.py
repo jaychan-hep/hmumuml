@@ -36,16 +36,23 @@ t_sig.Draw('bdt_category>>h_sig','weight*(m_mumu>=120&&m_mumu<=130)')
 t_VBF.Draw('bdt_category>>h_VBF','weight*(m_mumu>=120&&m_mumu<=130)')
 t_ggF.Draw('bdt_category>>h_ggF','weight*(m_mumu>=120&&m_mumu<=130)')
 t_data.Draw('bdt_category>>h_data','weight*(235005./769468.)*((m_mumu>=110&&m_mumu<=160)&&!(m_mumu>=120&&m_mumu<=130))')
+#t_data.Draw('bdt_category>>h_data','weight*(0.3054)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130))')
 
-print 'Total VBF events:    %.3f'%h_VBF.Integral()
-print 'Total ggF events:    %.3f'%h_ggF.Integral()
-print 'Total signal events: %.3f'%h_sig.Integral()
-print 'Total BKG events: %.3f'%h_data.Integral()
-
+print 'Total VBF events:      %.3f'%h_VBF.Integral()
+print 'Total ggF events:      %.3f'%h_ggF.Integral()
+print 'Total signal events:   %.3f'%h_sig.Integral()
+print 'Total BKG events:      %.3f'%h_data.Integral()
+print 'Inclusive VBF purity:  %.3f'%(h_VBF.Integral()/h_sig.Integral()*100)
+print 'Inclusive S/B ratio:   %.4f'%(h_sig.Integral()/h_data.Integral())
 
 print 'CAT NO.  VBF Events  ggF Events  Signal Events  BKG Events  VBF purity  S/B ratio  Significance'
-for i in range(1,11 if region == 'two_jet' else 6):
+z_tot = 0
+for i in range(1,7 if region == 'two_jet' else 4):
     purity = h_VBF.Integral(i,i)/h_sig.Integral(i,i)*100
     sbratio = h_sig.Integral(i,i)/h_data.Integral(i,i)
     z = calc_sig(h_sig.Integral(i,i), h_data.Integral(i,i)) 
     print 'CAT%d:       %.3f         %.3f          %.3f        %.3f        %.3f%%        %.4f      %.2f'%(i, h_VBF.Integral(i,i), h_ggF.Integral(i,i), h_sig.Integral(i,i), h_data.Integral(i,i), purity, sbratio, z)
+    z_tot += z**2
+
+z_tot = sqrt(z_tot)
+print 'Combined significances: %.4f'%z_tot

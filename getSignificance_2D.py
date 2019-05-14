@@ -71,16 +71,6 @@ def sum_z(zs):
 
 def gettingsig(region, boundaries_VBF, boundaries, nscanvbf, nscan, nfold, transform):
 
-    if not os.path.isdir('significances'):
-        print 'INFO: Creating output folder: \"significances\"'
-        os.makedirs("significances")
-
-    txt=open('significances/%s.txt' % (region), 'w')
-    for fold in range(nfold):
-        boundaries_VBF_value = [(i-1.)/nscanvbf for i in boundaries_VBF[fold]]
-        boundaries_value = [(i-1.)/nscan for i in boundaries[fold]]
-        txt.write('Boundaries %d: %s %s\n' % (fold, str(boundaries_VBF_value), str(boundaries_value)))
-
     f_bkg = ROOT.TFile('outputs/model_%s/bkg.root' % (region))
     t_bkg = f_bkg.Get('test')
 
@@ -118,8 +108,8 @@ def gettingsig(region, boundaries_VBF, boundaries, nscanvbf, nscan, nfold, trans
     print 'Signal yield: ', nsig
     print 'BKG yield: ', nbkg
     print 'Significance:  %f +- %f'%(s,abs(u))
-    txt.write('Significance: %f +- %f\n'%(s,abs(u)))
 
+    return s, abs(u)
 
 
 def main():
@@ -132,42 +122,83 @@ def main():
 
     define_arguement = False
 
-    print 'Number of points: %d%%'%(len(os.listdir('cat_opt/%s/%d_%d'%(region, args.vbf, args.nbin)))/(40.)*100)
+    print 'Number of points: %d%%'%(len(os.listdir('cat_opt/%s/%d_%d'%(region, args.vbf, args.nbin)))/(50.)*100)
 
     for txt in os.listdir('cat_opt/%s/%d_%d/'%(region, args.vbf, args.nbin)):
-        with open('cat_opt/%s/%d_%d/%s' %(region, args.vbf, args.nbin, txt)) as f:
-            data = json.load(f)
-            if not define_arguement:
-                transform = data['transform']
-                nfold = data['nfold']
-                nscanvbf = data['nscanvbf']
-                nscan = data['nscan']
-                floatB = data['floatB']
-                define_arguement = True
-                smax = [0 for i in range(nfold)]
-                boundaries_VBF = [0 for i in range(nfold)]
-                boundaries = [0 for i in range(nfold)]
-            else:
-                if nscanvbf != data['nscanvbf'] or nscan != data['nscan'] or transform != data['transform'] or nfold != data['nfold'] or floatB != data['floatB']:
-                    print 'ERROR: files have different arguement!! Please check the files and remove the obsolete files.'
-                    quit()
-            for fold in range(nfold):
-                if data[str(fold)]['smax'] > smax[fold]:
-                    smax[fold] = data[str(fold)]['smax']
-                    boundaries_VBF[fold] = data[str(fold)]['VBF']
-                    boundaries[fold] = data[str(fold)]['ggF']
+        #print txt
+        try:
+            with open('cat_opt/%s/%d_%d/%s' %(region, args.vbf, args.nbin, txt)) as f:
+                data = json.load(f)
+        except:
+            print "WARNING: corrupted file 'cat_opt/%s/%d_%d/%s'!! Will remove it."%(region, args.vbf, args.nbin, txt)
+            os.remove('cat_opt/%s/%d_%d/%s' %(region, args.vbf, args.nbin, txt))
+            continue
+        if not define_arguement:
+            transform = data['transform']
+            nfold = data['nfold']
+            nscanvbf = data['nscanvbf']
+            nscan = data['nscan']
+            floatB = data['floatB']
+            minN = data['minN']
+            define_arguement = True
+            smax = [0 for i in range(nfold)]
+            smax_raw = [0 for i in range(nfold)]
+            boundaries_VBF = [0 for i in range(nfold)]
+            boundaries = [0 for i in range(nfold)]
+        else:
+            if nscanvbf != data['nscanvbf'] or nscan != data['nscan'] or transform != data['transform'] or nfold != data['nfold'] or floatB != data['floatB']:
+                print 'ERROR: files have different arguement!! Please check the files and remove the obsolete files.'
+                quit()
+        for fold in range(nfold):
+            if data[str(fold)]['smax'] > smax[fold]:
+                smax[fold] = data[str(fold)]['smax']
+                smax_raw[fold] = data[str(fold)]['smax_raw']
+                boundaries_VBF[fold] = data[str(fold)]['VBF']
+                boundaries[fold] = data[str(fold)]['ggF']
 
     print 'Use transformed scores' if transform else 'Use non-transformed scores'
     print 'Number of folds: ', nfold
     print 'Number of scans of VBF boundaries: ', nscanvbf
     print 'Number of scans of ggF boundaries: ', nscan
-    print 'Averaged significance of categorization sets: ', sum(smax)/4
+    print 'Averaged significance of categorization sets: ', sum(smax)/nfold
+    print 'Averaged non-fit significance of categorization sets: ', sum(smax_raw)/nfold
+
+    boundaries_VBF_values = []
+    boundaries_values = []
     for fold in range(nfold):
         boundaries_VBF_value = [(i-1.)/nscanvbf for i in boundaries_VBF[fold]]
         boundaries_value = [(i-1.)/nscan for i in boundaries[fold]]
+        boundaries_VBF_values.append(boundaries_VBF_value)
+        boundaries_values.append(boundaries_value)
         print 'Boundaries %d: ' %fold, boundaries_VBF_value, boundaries_value
     
-    gettingsig(region, boundaries_VBF, boundaries, nscanvbf, nscan, nfold, transform)
+    s, u = gettingsig(region, boundaries_VBF, boundaries, nscanvbf, nscan, nfold, transform)
+
+    outs={}
+    outs['boundaries'] = boundaries
+    outs['boundaries_values'] = boundaries_values
+    outs['boundaries_VBF'] = boundaries_VBF
+    outs['boundaries_VBF_values'] = boundaries_VBF_values
+    outs['smax'] = sum(smax)/nfold
+    outs['smax_raw'] = sum(smax_raw)/nfold
+    outs['significance'] = s
+    outs['Delta_significance'] = u
+    outs['nscan'] = nscan
+    outs['nscanvbf'] = nscanvbf
+    outs['transform'] = transform
+    outs['floatB'] = floatB
+    outs['nfold'] = nfold
+    outs['minN'] = minN
+    outs['fine_tuned'] = False
+
+    if not os.path.isdir('significances/%s'%region):
+        print 'INFO: Creating output folder: "significances/%s"'%region
+        os.makedirs("significances/%s"%region)
+
+    with open('significances/%s/%d_%d.json' % (region, args.vbf, args.nbin), 'w') as json_file:
+        json.dump(outs, json_file)
+
+
 
     return
 

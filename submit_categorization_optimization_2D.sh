@@ -16,7 +16,6 @@ nvbf=$4
 
 
 cd $initdir
-#source ./setup_lxplus.sh
-source ./setup_pcuw.sh
+source ./setup_lxplus.sh
 echo python categorization_optimization_2D.py -t --vb $vb
-python categorization_optimization_2D.py -t --vb $vb -b $nbin -v $nvbf -r two_jet --floatB
+python categorization_optimization_2D.py -t --vb $vb -b $nbin -v $nvbf -r two_jet -f 1 #--floatB

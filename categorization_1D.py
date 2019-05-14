@@ -18,6 +18,7 @@ from math import sqrt, log
 import math
 import sys
 import time
+import json
 
 def getArgs():
     """Get arguments from command line."""
@@ -78,20 +79,6 @@ def sum_z(zs):
 
 def gettingsig(region,sigs,bkgs, boundaries, nscan, nbin, n_fold, transform):
 
-    if not os.path.isdir('significances'):
-        print 'INFO: Creating output folder: \"significances\"'
-        os.makedirs("significances")
-
-    txt=open('significances/%s.txt' % (region), 'w')
-    for fold in range(n_fold):
-        txt.write('-----------------------\n')
-        txt.write('Fold number %d\n'%fold)
-        txt.write('Bondaries: [%.3f' %((boundaries[fold][0]-1.)/nscan))
-        for i in range(1, len(boundaries[fold])):
-            txt.write(', %.3f' %((boundaries[fold][i]-1.)/nscan))
-        txt.write(']\n')
-        txt.write('_______________________________________________________________________________________________________________________________________\n\n')
-
     f_bkg = ROOT.TFile('outputs/model_%s/bkg.root' % (region))
     t_bkg = f_bkg.Get('test')
 
@@ -125,7 +112,8 @@ def gettingsig(region,sigs,bkgs, boundaries, nscan, nbin, n_fold, transform):
     print 'Signal yield: ', nsig
     print 'BKG yield: ', nbkg
     print 'Significance:  %f +- %f'%(s,abs(u))
-    txt.write('Significance: %f +- %f\n'%(s,abs(u)))
+
+    return s, abs(u)
 
 
 def categorizing(region,sigs,bkgs,nscan, minN, transform, nbin, floatB, n_fold, fold, earlystop):
@@ -142,8 +130,8 @@ def categorizing(region,sigs,bkgs,nscan, minN, transform, nbin, floatB, n_fold, 
     h_sig.Sumw2()
     h_bkg.Sumw2()
 
-    t_sig.Draw("bdt_score%s>>h_sig"%('_t' if transform else ''), "weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.), n_fold, fold))
-    t_bkg.Draw("bdt_score%s>>h_bkg"%('_t' if transform else ''), "weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.), n_fold, fold))
+    t_sig.Draw("bdt_score%s>>h_sig"%('_t' if transform else ''), "weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
+    t_bkg.Draw("bdt_score%s>>h_bkg"%('_t' if transform else ''), "weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
 
     print 'INFO: scanning all of the possibilities...'
     start_time = time.time()
@@ -496,7 +484,7 @@ def categorizing(region,sigs,bkgs,nscan, minN, transform, nbin, floatB, n_fold, 
     print 'Boundaries: ', boundaries_values
     print '========================================================================='
 
-    return boundaries, smax
+    return boundaries, boundaries_values, smax
     
 
 
@@ -537,16 +525,38 @@ def main():
 
     n_fold = args.nfold
     boundaries=[]
+    boundaries_values=[]
     smaxs = []
     for j in range(n_fold):
-        bound, smax = categorizing(region, sigs, bkgs, nscan, args.minN, args.transform, args.nbin if not args.floatB else args.nbin + 1, args.floatB, n_fold, j, args.earlystop)
+        bound, bound_value, smax = categorizing(region, sigs, bkgs, nscan, args.minN, args.transform, args.nbin if not args.floatB else args.nbin + 1, args.floatB, n_fold, j, args.earlystop)
         boundaries.append(bound)
+        boundaries_values.append(bound_value)
         smaxs.append(smax)
 
-    smax = sum(smaxs)/4
+    smax = sum(smaxs)
     print 'Averaged significance: ', smax
 
-    gettingsig(region,sigs,bkgs, boundaries, nscan, args.nbin, n_fold, args.transform)
+    s, u = gettingsig(region,sigs,bkgs, boundaries, nscan, args.nbin, n_fold, args.transform)
+
+    outs={}
+    outs['boundaries'] = boundaries
+    outs['boundaries_values'] = boundaries_values
+    outs['smax'] = smax
+    outs['significance'] = s
+    outs['Delta_significance'] = u
+    outs['nscan'] = nscan
+    outs['transform'] = args.transform
+    outs['floatB'] = args.floatB
+    outs['nfold'] = n_fold
+    outs['minN'] = args.minN
+    outs['fine_tuned'] = False
+
+    if not os.path.isdir('significances/%s'%region):
+        print 'INFO: Creating output folder: "significances/%s"'%region
+        os.makedirs("significances/%s"%region)
+
+    with open('significances/%s/%d.json' % (region, args.nbin), 'w') as json_file:
+        json.dump(outs, json_file)
 
     return
 
