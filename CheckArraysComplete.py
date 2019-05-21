@@ -48,7 +48,7 @@ def missing_samplelist(channel,category,inputdir):
             print 'WARNING: File does not match with a tipical file name!!'
                     
         for section in range(-1,4):
-            if category in ['Z', 'stop', 'diboson', 'ttbar'] and section != -1: continue
+            if category in ['ttH', 'VH', 'Z', 'stop', 'diboson', 'ttbar'] and section != -1: continue
             for region in ['two_jet','one_jet','zero_jet']:
                 for obj in ['jets','dijet','dimuon','met']: 
                     if not ((os.path.isfile('arrays/%s/%s_%s_%d_%s.npy' % (category, array_basename, region, section, obj))  and (os.path.isfile('AppInputs/%s/%s_%s.root' % (category,array_basename,region)) or section != -1) and (os.path.isfile('arrays/%s/%s_%s_%d_weight.npy' % (category,array_basename, region, section)) or section == -1)) or os.path.isfile('arrays/%s/%s_%s_%d.txt' % (category,array_basename, region, section))):
@@ -61,11 +61,11 @@ def main():
     args=getArgs()
     inputdir="inputs"
     sample_list = {'data':    ['data15','data16','data17','data18'],
-                   'ttbar':   ['410472'],
-                   'Z':       ['364100','364101','364102','364103','364104','364105','364106','364107','364108','364109','364110','364111','364112','364113',
-                               '366300','366301','366303','366304','366306'],
-                   'stop':    ['410644','410645'],
-                   'diboson': ['363356','363358','364250','364253','364254'],
+                   #'ttbar':   ['410472'],
+                   #'Z':       ['364100','364101','364102','364103','364104','364105','364106','364107','364108','364109','364110','364111','364112','364113',
+                   #            '366300','366301','366303','366304','366306'],
+                   #'stop':    ['410644','410645'],
+                   #'diboson': ['363356','363358','364250','364253','364254'],
                    'ttH':     ['344388'],
                    'VH':      ['345103','345104','345105','345098'],
                    'VBF':     ['345106'],

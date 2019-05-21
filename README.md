@@ -1,6 +1,6 @@
-# Welcome to MonoHbbML
+# Welcome to HmumuML
 
-MonoHbbML is a package that can be used to study the XGBoost technique in Mono-H(bb) analysis.
+HmumuML is a package that can be used to study the XGBoost BDT categorization in Hmumu analysis.
 
 ## Setup
 
@@ -27,12 +27,9 @@ Then, checkout necessary packages:
 
 ```
 pip install pip --upgrade
-pip install theano keras h5py sklearn matplotlib tabulate xgboost seaborn pandas
+pip install h5py sklearn matplotlib tabulate xgboost
 pip install --upgrade https://github.com/rootpy/root_numpy/zipball/master
 ```
-
-If this is the first time you are using keras, you will want to change the backend to theano instead of the default tensorflow.
-To do this, edit the appropriate line in `~/.keras/keras.json`.
 
 ### Normal setup on lxplus
 
@@ -42,7 +39,7 @@ After setting up the environment for the first time, you can return to this setu
 
 ### Producing training inputs and reduced root-files which the trained model will be applied to
 
-The core script is `process_arrays.py`. The script will apply the given preselection cuts to input samples and produce corresponding ntuples, numpy arrays files, and a text file containing the information of averaged weight of the sample. You can directly run it for any specified input files. Since there are too many samples in Mono-H(bb), it is more convinient and time-efficient to use `SubmitProcessArrays.py` which will find all of the input files and run the core script by submitting the condor jobs.
+The core script is `process_arrays.py`. The script will apply the given preselection cuts to input samples and produce corresponding ntuples, numpy arrays files, and a text file containing the information of averaged weight of the sample. You can directly run it for any specified input files. Since there are too many samples in H->mumu, it is more convinient and time-efficient to use `SubmitProcessArrays.py` which will find all of the input files and run the core script by submitting the condor jobs.
 
 
 ```
@@ -50,27 +47,25 @@ python SubmitProcessArrays.py
 ```
 or
 ```
-python process_arrays.py [-n INPUT_FILE_NAME] [-r REGION] [-v] [-t] [-c CATEGORY]
+python process_arrays.py [-n INPUT_FILE_NAME] [-r REGION] [-s SECTION] [-c CATEGORY] [-d]
 
-Note:
+Usage:
   -n, --name          The name of the input root-file. The mother folder ('inputs/') shall not be included in the name. 
   -r, --region        The region of interest. Choices: 'zero_jet', 'one_jet', or 'two_jet'.
-  -v, --val           Do validation sample.
-  -t, --train         Do training sample.
+  -s, --section       The section to run. Choices: -1, 0, 1, 2, 3.
   -c, --category      Define the category that the input sample belongs to. This will put the output files with the same category into the same container.
+  -d, --isdata        Is data or not
 ```
 
 ### Check if the training inpnuts and reduced root-files are complete
 
-The script `CheckArraysComplete.py` will check if all of the outputs from last step exist.
+The script `CheckArraysComplete.py` will check if all of the outputs from last step exist and create a text file which summarizes the missing files and can be used to recover the missing files.
 
 ```
 python CheckArraysComplete.py
 ``` 
 
 ### Recover the missing files and bad files
-
-There are several stages where you will need to recover the files. One is when there are missing files. Others are when there are bad files that can't be read. Both cases can be addressed by running `RecoverMissingFiles.py`.
 
 After checking the completeness, if there are missing files, you can either run the recover script locally:
 
@@ -84,83 +79,48 @@ Or resubmit the jobs for the missing files:
 python SubmitRecoverMissingFiles.py
 ```
 
-When running the training scripts later on, errors might occur due to some bad files that cannot be loaded. When this happens, do the following to recover the bad files:
-
-```
-python RecoverMissingFiles.py -b
-```
-Update: Now the later scripts are able to automatically call the recovering script to recover the bad files, so there might not be need anymore for doing the above command by hand.
-
 ### Start XGBoost analysis!
 
-The whole ML task consists of training, applying the weights, plotting BDT distribution, optimizing the BDT boundaries for categorization, and calculating the number counting significances.
+The whole ML task consists of training, applying the weights, plotting BDT distribution, optimizing the BDT boundaries for categorization, and calculating the number counting significances. The wrapper script `run_training.sh` will run everything. Please have a look!
 
 #### Training a model
 
+The training script `train_bdt.py` will train the model in four-fold, and transform the output scores such that the unweighted signal distribution is flat.
+
 ```
-python train_bdt.py [-r REGION] [--save]
+python train_bdt.py [-r REGION] [-f FOLD] [--VBF] [--ROC] [--save]
+
+Usage:
+  -r, --region        The region of interest. Choices: 'zero_jet', 'one_jet', or 'two_jet'.
+  -f, --fold          Which fold to run. Default is -1 (run all folds)
+  --VBF               To train VBF classifier
+  --roc               To plot the ROC curve or not.
+  --save              To save the model into HDF5 files, and the pickle files
 ```
+
 #### Applying the weights
 
-Applying the trained model to the reduced ntuples to get BDT scores for each event can be done by doing:
+Applying the trained model (as well as the score transformation)  to the reduced ntuples to get BDT scores for each event can be done by doing:
 ```
 python applyBDTWeight.py [-r REGION]
 ```
-#### Plotting BDT distribution
-`plot_score.py` will plot the BDT distribution for backgrounds and signal using their validation samples.
-```
-python plot_score.py [-r REGION] [-m Train_Model_mZP_1 Train_Model_mA_1 Train_Model_mA_2 ...] [-s Target_Signal_mZP_1 Target_Signal_mA_1 Target_signal_mZP_2 Target_signal_mA_2 ...]
-
-Note:
-  The trained signal points have to be in the same order as that you stated in the training.
-```
 #### Optimizing the BDT boundaries
 
-```
-python categorization.py [-r REGION] [--minN minN] 
+`categorization_1D.py` will take the Higgs classifier scores of the samples and optimized the boundaries that give the best combined significance. `submit_categorization_optimization_2D.py` will submit the jobs for optimizing the 2D scan of the BDT boundaries using both Higgs and VBF classifiers. Note that `submit_categorization_optimization_2D.py` can only be run after `categorization_1D.py` has been run at least once.
 
-Note:
-   minN is the minimum number of events required in the mass window. The default is 2.
 ```
-#### Getting the significance using customized BDT boundaries
+python categorization_1D.py [-r REGION] [-f NUMBER OF FOLDS] [-b NUMBER OF CATEGORIES] [-n NSCAN] [--floatB] [--minN minN]
 
-The number of the customized boundaries can be as many as you want. The boundaries have to be arranged in their ascending order.
-```
-python getSignificance.py [-r REGION] [-m Train_Model_mZP Train_Model_mA] [-b customized_boundary_1 customized_boundary_2 ...]
-```
-
-#### Plotting the significance and improvement
-```
-python plotSignificance.py [-r REGION] [-m Train_Model_mZP Train_Model_mA] [-s Target_Signal_mZP Target_Signal_mA] [-b customized_boundary_1 customized_boundary_2 ...]
-
-Note:
-  If you want to use the boundaries optimized on certain signal point, please use -s and specify the target signal point. 
-  You can also plot the significances with your own customized BDT boundaries by using -b followed by the boundaries you prefer. 
-  The number of the customized boundaries can be as many as you want. The boundaries have to be arranged in their ascending order.
-``` 
-#### Plotting distribution of each variable
-```
-python plotVariables.py [-r REGION] [-m mZP_1 mA_1 mZP_2 mA_2 ...]
-
-Note:
-  You can type as many masspoints of signals as you want.
-```
-#### Plotting feature-importance
-```
-python plot_features.py [-r REGION] [-m Train_Model_mZP_1 Train_Model_mA_1 Train_Model_mZP_2 Train_Model_mA_2 ...]
-```
-### Make a combined significance plot
-
-You would need to modify to codes to use different models and BDT boundaries for each region.
-```
-python plotCombine.py
-```
-### Get the cut-based event yields
-```
-python getYields.py [-n name_to_specify_the_cut_methods]
+Usage:
+  -f, --fold          Number of folds of the categorization optimization. Default is 1.
+  -b, --nbin          Number of BDT categories
+  -n, --nscan         Number of scans. Default is 100
+  --minN,             minN is the minimum number of events required in the mass window. The default is 5.
+  --floatB            To float the last BDT boundary, which means to veto the lowest BDT score events
 ```
 
-### Get and plot baseline cut-based significances
+After the jobs for running 2D scan are done, one can use `getSignificance_2D.py` to extract the results.
+
 ```
-python plotBaseline.py [-n name_of_the_cut_methods]
+python getSignificance_2D.py [-r REGION] [-b NUMBER OF ggF CATEGORIES] [-v NUMBER OF VBF CATEGORIES]
 ```

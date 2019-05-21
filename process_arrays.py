@@ -25,7 +25,7 @@ def getArgs():
     parser = ArgumentParser(description="Process input rootfiles into numpy arrays for Hmumu XGBoost analysis.")
     parser.add_argument('-n', '--name', action='store', required=True, help='File to process')
     parser.add_argument('-i', '--inputdir', action='store', default='inputs', help='Directory that contains ntuples.')
-    parser.add_argument('-r', '--region', action='store', choices=['all_jet','two_jet','one_jet','zero_jet'],default='all_jet', help='Region to process')
+    parser.add_argument('-r', '--region', action='store', choices=['all_jet','two_jet','one_jet','zero_jet'],default='zero_jet', help='Region to process')
     parser.add_argument('-s', '--section', type=int, choices=[-1, 0, 1, 2, 3], required=True, help='The section to process')
     parser.add_argument('-c', '--category', action='store', required=True, help='The category of samples')
     parser.add_argument('-d', '--isdata', action='store_true', default=False, help='Real data')
@@ -34,7 +34,6 @@ def getArgs():
 def process_arrays(args):
 
     DSID=args.name.split('.')[1]
-    #container=args.name.split('/')[1]
 
     # Open input files
     f = ROOT.TFile.Open(args.inputdir+"/"+args.name)
@@ -174,7 +173,7 @@ def process_arrays(args):
     dijet = []
     dimuon = []
     extras = []
-    if args.section != -1: # and not args.isdata:
+    if args.section != -1:
         wt = []
 
     print "INFO: Running %d events" % (t.GetEntries())
@@ -196,7 +195,7 @@ def process_arrays(args):
         
         # place holder 
         if 1:
-            # preselection
+            # Non-fJVT jet channel selections
             #if args.region == 'two_jet':
             #    if not (njet[0] >= 2): continue
             #if args.region == 'one_jet':
@@ -204,6 +203,7 @@ def process_arrays(args):
             #if args.region == 'zero_jet':
             #    if not (njet[0] == 0): continue
 
+            # preselections
             if not (nmuon[0] == 2): continue
             if not (Event_HasBJet[0] == 0): continue
             #if not (args.region == 'two_jet' or metFinalTrk[0] <= 80): continue
@@ -227,7 +227,7 @@ def process_arrays(args):
                 njet[0] = njet[0] + 1
                 ej.append([Jets_Pt[j], Jets_Eta[j], ROOT.TVector2.Phi_mpi_pi(Jets_Phi[j] - Z_Phi_FSR[0]), Jets_Phi[j], Jets_E[j]])
 
-            # jet channel selection
+            # f-JVT jet channel selection
             if args.region == 'two_jet':
                 if not (njet[0] >= 2): continue
             if args.region == 'one_jet':

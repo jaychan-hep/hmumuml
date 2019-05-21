@@ -2,18 +2,9 @@
 import os
 from argparse import ArgumentParser
 #import json
-#import traceback
-#import math
-import ROOT
-#from root_numpy import root2array
 import numpy as np
-from ttHyy import *
 import pickle
-#from sklearn import model_selection
 from sklearn.metrics import roc_curve, auc, confusion_matrix
-#from sklearn.model_selection import train_test_split
-#from keras.optimizers import RMSprop
-#from keras.callbacks import EarlyStopping, ModelCheckpoint
 from sklearn.preprocessing import StandardScaler, QuantileTransformer
 import xgboost as xgb
 from tabulate import tabulate
@@ -310,7 +301,7 @@ def main():
     print 'INFO:  Training as signal on:  ', sigs
 
     bkgs = ['data'] if not args.VBF else ['data']
-    #bkgs = ['Z'] if not args.VBF else ['Z']
+
     print 'INFO:  Traing as backgroun on:  ', bkgs
     print '------------------------------------------------------------------------------'
 

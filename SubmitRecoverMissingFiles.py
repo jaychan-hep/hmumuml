@@ -14,7 +14,7 @@
 import os
 from datetime import datetime
 from argparse import ArgumentParser
-from ttHyy.condor import condor_booklist
+from hmumuml.condor import condor_booklist
 
 def getArgs():
     """Get arguments from command line."""

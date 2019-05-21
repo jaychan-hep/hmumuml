@@ -6,7 +6,6 @@
 #
 #  8.22.2018
 #
-#  Modified from ttHyy XGBosst anaylsis codes
 #
 #
 #
@@ -31,7 +30,7 @@ def getArgs():
     #parser.add_argument('--val', action = 'store_true', default = False, help = 'use validation samples for categroization')
     parser.add_argument('-t', '--transform', action = 'store_true', default = True, help = 'use the transform scores for categroization')
     parser.add_argument('--floatB', action = 'store_true', default = False, help = 'Floting last boundary')
-    parser.add_argument('-f', '--nfold', type = int, default = 4, help='number of folds.')
+    parser.add_argument('-f', '--nfold', type = int, default = 1, help='number of folds.')
     parser.add_argument('-e', '--earlystop', type = int, default = 10, help='early stopping rounds.')
     return  parser.parse_args()
 

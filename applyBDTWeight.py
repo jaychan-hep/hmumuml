@@ -13,22 +13,19 @@
 #
 import os
 from argparse import ArgumentParser
-import math
 import ROOT
 from root_numpy import root2array
 from array import array
 import numpy as np
 import pickle
 from sklearn.preprocessing import StandardScaler, QuantileTransformer
-from keras import models
 import xgboost as xgb
-import matplotlib.pyplot as plt
 
 
 def getArgs():
     """Get arguments from command line."""
     parser = ArgumentParser()
-    parser.add_argument('-r', '--region', action='store', choices=['zero_jet','one_jet','two_jet','all_jet'], default='all_jet', help='Region to process')
+    parser.add_argument('-r', '--region', action='store', choices=['zero_jet','one_jet','two_jet','all_jet'], default='zero_jet', help='Region to process')
     return parser.parse_args()
 
 

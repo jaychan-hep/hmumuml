@@ -14,7 +14,7 @@
 import os
 from datetime import datetime
 from argparse import ArgumentParser
-from ttHyy.condor import condor_booklist
+from hmumuml.condor import condor_booklist
 
 def getArgs():
     """Get arguments from command line."""
@@ -29,8 +29,7 @@ def arrange_samplelist(channel,category,inputdir):
         if channel not in filename: continue
         if '.root' not in filename: continue
         for section in ['g', '0', '1', '2', '3']:
-            #if section != 'g' and category == 'data': continue
-            if category in ['ttbar', 'Z', 'stop', 'diboson'] and section != 'g': continue
+            if category in ['ttH', 'VH', 'ttbar', 'Z', 'stop', 'diboson'] and section != 'g': continue
             for region in ['two_jet','one_jet','zero_jet']:
                 samples.append("%s %s %s %s"% (filename,category,section,region))
     return samples
@@ -40,11 +39,11 @@ def main():
     date = datetime.now().strftime("%Y-%m-%d-%H-%M")
     inputdir = args.inputdir
     sample_list = {'data':    ['data15','data16','data17','data18'],
-                   'ttbar':   ['410472'],
-                   'Z':       ['364100','364101','364102','364103','364104','364105','364106','364107','364108','364109','364110','364111','364112','364113',
-                               '366300','366301','366303','366304','366306'],
-                   'stop':    ['410644','410645'],
-                   'diboson': ['363356','363358','364250','364253','364254'],
+                   #'ttbar':   ['410472'],
+                   #'Z':       ['364100','364101','364102','364103','364104','364105','364106','364107','364108','364109','364110','364111','364112','364113',
+                   #            '366300','366301','366303','366304','366306'],
+                   #'stop':    ['410644','410645'],
+                   #'diboson': ['363356','363358','364250','364253','364254'],
                    'ttH':     ['344388'],
                    'VH':      ['345103','345104','345105','345098'],
                    'VBF':     ['345106'],
