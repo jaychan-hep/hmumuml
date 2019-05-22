@@ -9,7 +9,7 @@ HmumuML is a package that can be used to study the XGBoost BDT categorization in
 First checkout the code:
 
 ```
-git clone ssh://git@gitlab.cern.ch:7999/wisc_atlas/hmumuml.git [-b your_branch]
+git clone ssh://git@gitlab.cern.ch:7999/HZZ/HZZSoftware/Hmumu/hmumuml.git [-b your_branch]
 cd HmumuML
 ```
 
