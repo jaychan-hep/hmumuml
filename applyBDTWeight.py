@@ -271,9 +271,9 @@ def main():
         tsfs.append(tsf)
 
     if VBF:
-        apply_weight(mcs, region, tsfs, tsfs_VBF=tsfs_VBF)
+        apply_weight(sigs+bkgs, region, tsfs, tsfs_VBF=tsfs_VBF)
     else:
-        apply_weight(mcs, region, tsfs, VBF=False)
+        apply_weight(sigs+bkgs, region, tsfs, VBF=False)
 
     print '------------------------------------------------------------------------------'
     print 'Finishing the process'
