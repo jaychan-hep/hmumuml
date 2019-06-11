@@ -172,9 +172,23 @@ def apply_weight(categories,region,tsfs,tsfs_VBF=[], VBF=True):
 
             # output tree
             bdt_score = array('f', [0])
-            if VBF: bdt_score_VBF = array('f', [0])
+            bdt_score_val = array('f', [0])
+            bdt_score_trainA = array('f', [0])
+            bdt_score_trainB = array('f', [0])
+            if VBF:
+                bdt_score_VBF = array('f', [0])
+                bdt_score_VBF_val = array('f', [0])
+                bdt_score_VBF_trainA = array('f', [0])
+                bdt_score_VBF_trainB = array('f', [0]) 
             bdt_score_t = array('f', [0])
-            if VBF: bdt_score_VBF_t = array('f', [0])
+            bdt_score_val_t = array('f', [0])
+            bdt_score_trainA_t = array('f', [0])
+            bdt_score_trainB_t = array('f', [0])
+            if VBF:
+                bdt_score_VBF_t = array('f', [0])
+                bdt_score_VBF_val_t = array('f', [0])
+                bdt_score_VBF_trainA_t = array('f', [0])
+                bdt_score_VBF_trainB_t = array('f', [0])
             outtree = ROOT.TTree('test', 'test')
             outtree.SetAutoSave(10000)
             #outtree.SetDirectory(0)
@@ -208,10 +222,23 @@ def apply_weight(categories,region,tsfs,tsfs_VBF=[], VBF=True):
             outtree.Branch('weight', weight, 'weight/D')
             outtree.Branch('EventWeight_MCEventWeight', EventWeight_MCEventWeight, 'EventWeight_MCEventWeight/F')
             outtree.Branch('bdt_score', bdt_score, 'bdt_score/F')
-            if VBF: outtree.Branch('bdt_score_VBF', bdt_score_VBF, 'bdt_score_VBF/F')
+            outtree.Branch('bdt_score_val', bdt_score_val, 'bdt_score_val/F')
+            outtree.Branch('bdt_score_trainA', bdt_score_trainA, 'bdt_score_trainA/F')
+            outtree.Branch('bdt_score_trainB', bdt_score_trainB, 'bdt_score_trainB/F')
+            if VBF:
+                outtree.Branch('bdt_score_VBF', bdt_score_VBF, 'bdt_score_VBF/F')
+                outtree.Branch('bdt_score_VBF_val', bdt_score_VBF_val, 'bdt_score_VBF_val/F')
+                outtree.Branch('bdt_score_VBF_trainA', bdt_score_VBF_trainA, 'bdt_score_VBF_trainA/F')
+                outtree.Branch('bdt_score_VBF_trainB', bdt_score_VBF_trainB, 'bdt_score_VBF_trainB/F')
             outtree.Branch('bdt_score_t', bdt_score_t, 'bdt_score_t/F')
-            if VBF: outtree.Branch('bdt_score_VBF_t', bdt_score_VBF_t, 'bdt_score_VBF_t/F')
-
+            outtree.Branch('bdt_score_val_t', bdt_score_val_t, 'bdt_score_val_t/F')
+            outtree.Branch('bdt_score_trainA_t', bdt_score_trainA_t, 'bdt_score_trainA_t/F')
+            outtree.Branch('bdt_score_trainB_t', bdt_score_trainB_t, 'bdt_score_trainB_t/F')
+            if VBF:
+                outtree.Branch('bdt_score_VBF_t', bdt_score_VBF_t, 'bdt_score_VBF_t/F')
+                outtree.Branch('bdt_score_VBF_val_t', bdt_score_VBF_val_t, 'bdt_score_VBF_val_t/F')
+                outtree.Branch('bdt_score_VBF_trainA_t', bdt_score_VBF_trainA_t, 'bdt_score_VBF_trainA_t/F')
+                outtree.Branch('bdt_score_VBF_trainB_t', bdt_score_VBF_trainB_t, 'bdt_score_VBF_trainB_t/F')
 
 
             #print 'writing bdt scores into new rootfiles...'
@@ -219,11 +246,25 @@ def apply_weight(categories,region,tsfs,tsfs_VBF=[], VBF=True):
                 intree.GetEntry(i)
                 tag = eventNumber[0]%4
                 tag_val = (tag - 1)%4
+                tag_trainA = (tag - 2)%4
+                tag_trainB = (tag - 3)%4
                 bdt_score[0] = 1.0 - scores[tag][i]
                 bdt_score_t[0] = 1 - scores_t[tag][i]
+                bdt_score_val[0] = 1.0 - scores[tag_val][i]
+                bdt_score_val_t[0] = 1 - scores_t[tag_val][i]
+                bdt_score_trainA[0] = 1.0 - scores[tag_trainA][i]
+                bdt_score_trainA_t[0] = 1 - scores_t[tag_trainA][i]
+                bdt_score_trainB[0] = 1.0 - scores[tag_trainB][i]
+                bdt_score_trainB_t[0] = 1 - scores_t[tag_trainB][i]
                 if VBF:
                     bdt_score_VBF[0] = 1.0 - scores_VBF[tag][i]
                     bdt_score_VBF_t[0] = 1 - scores_VBF_t[tag][i]
+                    bdt_score_VBF_val[0] = 1.0 - scores_VBF[tag_val][i]
+                    bdt_score_VBF_val_t[0] = 1 - scores_VBF_t[tag_val][i]
+                    bdt_score_VBF_trainA[0] = 1.0 - scores_VBF[tag_trainA][i]
+                    bdt_score_VBF_trainA_t[0] = 1 - scores_VBF_t[tag_trainA][i]
+                    bdt_score_VBF_trainB[0] = 1.0 - scores_VBF[tag_trainB][i]
+                    bdt_score_VBF_trainB_t[0] = 1 - scores_VBF_t[tag_trainB][i]
                 outtree.Fill()
 
             outtree.Write()

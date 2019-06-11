@@ -66,6 +66,8 @@ def plotROC(y_train, weight_train, score_train, y_val, weight_val, score_val, y_
     plt.legend(loc='lower left', framealpha=1.0)
 
     #plt.savefig('plots/' + filename + '.png')
+    if not os.path.isdir('bdt_plots'):
+        os.makedirs('bdt_plots')
     plt.savefig('bdt_plots/' + filename + '.eps')
 
     if show: plt.show()

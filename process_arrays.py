@@ -45,6 +45,8 @@ def process_arrays(args):
 
     eventNumber = array('L', [0])
 
+    FinalSelection = array('f', [0])
+
     nmuon = array('i',[0])
     Muons_Minv_MuMu_Fsr = array('f', [0])
 
@@ -91,6 +93,8 @@ def process_arrays(args):
     t.SetBranchAddress('Truth_Boson_Mass', Truth_Boson_Mass)
 
     t.SetBranchAddress('EventInfo_EventNumber', eventNumber)
+
+    t.SetBranchAddress('FinalSelection', FinalSelection)
 
     t.SetBranchAddress('Muons_Multip', nmuon)
     t.SetBranchAddress('Muons_Minv_MuMu_Fsr', Muons_Minv_MuMu_Fsr)
@@ -204,6 +208,8 @@ def process_arrays(args):
             #    if not (njet[0] == 0): continue
 
             # preselections
+            if not FinalSelection[0]: continue
+
             if not (nmuon[0] == 2): continue
             if not (Event_HasBJet[0] == 0): continue
             #if not (args.region == 'two_jet' or metFinalTrk[0] <= 80): continue
