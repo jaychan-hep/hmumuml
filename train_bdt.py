@@ -35,10 +35,28 @@ class XGBoostHandler(object):
 
     def __init__(self, configPath, region=''):
 
+        print """
+**     *     ** ##### $$   ######    ****    #       # %%%%%
+ **   ***   **  #     $$  ##       ***  ***  ##     ## %
+  ** ** ** **   ##### $$ ##       **      ** # #   # # %%%%%
+   ***   ***    #     $$  ##       ***  ***  #  # #  # %
+    *     *     ##### $$   ######    ****    #   #   # %%%%%
+
+      XX      XX          GGGGGG       BBBBB 
+        XX  XX          GG             B    BB
+          XX          GG     GGGG      BBBBB
+        XX  XX         GG     GG       B    BB
+      XX      XX         GGGGGG        BBBBB
+              """
+
+
         self._region = region
         self._inputFolder = 'skimmed_ntuples'
+        self._inputTree = 'Skimmed_Hmumu'
         self._outputFolder = 'models'
         self._chunksize = 500000
+        self._randomIndex = 'eventNumber'
+        self._weight = 'weight'
 
         self.m_data_sig = pd.DataFrame()
         self.m_data_bkg = pd.DataFrame()
@@ -61,49 +79,57 @@ class XGBoostHandler(object):
         self.m_score_test_bkg = {}
         self.m_tsf = {}
 
-        self.train_signal = ['ggF', 'VBF']
-        self.train_background = ['Z', 'ttbar']
-        self.train_variables = ['Z_PT_FSR', 'Z_Y_FSR', 'Muons_CosThetaStar',
-                                'Jets_PT_Lead', 'Jets_Eta_Lead', 'DeltaPhi_mumumj1',
-                                'Jets_PT_Sub', 'Jets_Eta_Sub', 'DeltaPhi_mumumj2',
-                                'Jets_PT_jj', 'Jets_Y_jj', 'DeltaPhi_mumumjj',
-                                'Event_MET']
+        self.train_signal = []
+        self.train_background = []
+        self.train_variables = []
         self.params = [{'eval_metric': ['auc', 'logloss']}]
         self.early_stopping_rounds = 10
         self.numRound = 10000
         self.SF = 1.
 
         self.readConfig(configPath, self._region)
+        self.checkConfig()
 
     def readConfig(self, configPath, region):
         """Read configuration file formated in json to extract information to fill TemplateMaker variables."""
         try:
+            member_variables = [attr for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("_") and not attr.startswith('m_')]
+
             stream = open(configPath, 'r')
             configs = json.loads(stream.read())
-            config = configs[region] if region else configs
-            member_variables = [attr for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("_") and not attr.startswith('m_')]
-            print 'member variables: ', member_variables
-            print config.keys()
-            # check if member variable name is in config file. if it is, update member variable to value of config file
+
+            # read from the common settings
+            config = configs["common"]
             for member in config.keys():
                 if member in member_variables:
                     setattr(self, member, config[member])
 
-            #if 'params': config.keys()
-            #    params_temp = []
-            #    for param in self.params:
-            #        for param in self.param
+            # read from the region specific settings
+            if region:
+                config = configs[region]
+                for member in config.keys():
+                    if member in member_variables:
+                        setattr(self, member, config[member])
+                if '+train_variables' in config.keys():
+                    self.train_variables += config['+train_variables']
 
         except Exception as e:
             logging.error("Error reading configuration '{config}'".format(config=configPath))
             logging.error(e)
 
-    def setParams(self, params):
+    def checkConfig(self):
+        if not self.train_signal: print 'ERROR: no training signal!!'
+        if not self.train_background: print 'ERROR: no training background!!'
+        if not self.train_variables: print 'ERROR: no training variables!!'
+
+    def setParams(self, params, fold=-1):
 
         print 'XGB INFO: setting hyperparameters...'
-        self.params = [{'eval_metric': ['auc', 'logloss']}]
+        if fold == -1:
+            self.params = [{'eval_metric': ['auc', 'logloss']}]
+            fold = 0
         for key in params:
-            self.params[0][key] = params[key]
+            self.params[fold][key] = params[key]
 
     def setInputFolder(self, inputFolder):
         self._inputFolder = inputFolder
@@ -124,6 +150,9 @@ class XGBoostHandler(object):
 
     def readData(self):
 
+        branches = set(self.train_variables) | set(['m_mumu', 'n_j']) | set([self._randomIndex]) | set([self._weight])
+        branches = list(branches)
+
         sig_list, bkg_list = [], []
         for sig_cat in self.train_signal:
             sig_cat_folder = self._inputFolder + '/' + sig_cat
@@ -136,10 +165,10 @@ class XGBoostHandler(object):
 
         print '-------------------------------------------------'
         print 'XGB INFO: Loading training signals...'
-        for sig in sig_list: print 'XGB INFO: Adding signal samples: ', sig
+        for sig in sig_list: print 'XGB INFO: Adding signal sample: ', sig
         pbar = ProgressBar()
         #TODO put this to the config
-        for data in pbar(read_root(sig_list, key='Skimmed_Hmumu', columns=self.train_variables+['m_mumu', 'n_j', 'eventNumber', 'weight'], chunksize=self._chunksize)):
+        for data in pbar(read_root(sorted(sig_list), key=self._inputTree, columns=branches, chunksize=self._chunksize)):
             data = self.preselect(data)
             self.m_data_sig = self.m_data_sig.append(data, ignore_index=True)
 
@@ -148,7 +177,7 @@ class XGBoostHandler(object):
         for bkg in bkg_list: print 'XGB INFO: Adding background sample: ', bkg
         pbar = ProgressBar()
         #TODO put this to the config
-        for data in pbar(read_root(bkg_list, key='Skimmed_Hmumu', columns=self.train_variables+['m_mumu', 'n_j', 'eventNumber', 'weight'], chunksize=self._chunksize)):
+        for data in pbar(read_root(sorted(bkg_list), key=self._inputTree, columns=branches, chunksize=self._chunksize)):
             data = self.preselect(data)
             self.m_data_bkg = self.m_data_bkg.append(data, ignore_index=True)
 
@@ -157,12 +186,12 @@ class XGBoostHandler(object):
         # training, validation, test split
         print '----------------------------------------------------------'
         print 'XGB INFO: Splitting samples to training, validation, and test...'
-        test_sig = self.m_data_sig[self.m_data_sig.eventNumber%4 == fold]
-        test_bkg = self.m_data_bkg[self.m_data_bkg.eventNumber%4 == fold]
-        val_sig = self.m_data_sig[(self.m_data_sig.eventNumber-1)%4 == fold]
-        val_bkg = self.m_data_bkg[(self.m_data_bkg.eventNumber-1)%4 == fold]
-        train_sig = self.m_data_sig[((self.m_data_sig.eventNumber-2)%4 == fold) | ((self.m_data_sig.eventNumber-3)%4 == fold)]
-        train_bkg = self.m_data_bkg[((self.m_data_bkg.eventNumber-2)%4 == fold) | ((self.m_data_bkg.eventNumber-3)%4 == fold)]
+        test_sig = self.m_data_sig[self.m_data_sig[self._randomIndex]%4 == fold]
+        test_bkg = self.m_data_bkg[self.m_data_bkg[self._randomIndex]%4 == fold]
+        val_sig = self.m_data_sig[(self.m_data_sig[self._randomIndex]-1)%4 == fold]
+        val_bkg = self.m_data_bkg[(self.m_data_bkg[self._randomIndex]-1)%4 == fold]
+        train_sig = self.m_data_sig[((self.m_data_sig[self._randomIndex]-2)%4 == fold) | ((self.m_data_sig[self._randomIndex]-3)%4 == fold)]
+        train_bkg = self.m_data_bkg[((self.m_data_bkg[self._randomIndex]-2)%4 == fold) | ((self.m_data_bkg[self._randomIndex]-3)%4 == fold)]
 
         headers = ['Sample', 'Total', 'Training', 'Validation']
         sample_size_table = [
@@ -187,12 +216,12 @@ class XGBoostHandler(object):
 
         # setup the weights
         print 'XGB INFO: Setting the event weights...'
-        train_sig_wt = train_sig.weight * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_sig.weight.mean() * (1+self.SF) * train_sig.shape[0] )
-        train_bkg_wt = train_bkg.weight * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_sig.weight.mean() * (1+self.SF) * train_bkg.shape[0] )
-        val_sig_wt = val_sig.weight * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_sig.weight.mean() * (1+self.SF) * train_sig.shape[0] )
-        val_bkg_wt = val_bkg.weight * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_bkg.weight.mean() * (1+self.SF) * train_bkg.shape[0] )
-        test_sig_wt = test_sig.weight
-        test_bkg_wt = test_bkg.weight
+        train_sig_wt = train_sig[self._weight] * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_sig[self._weight].mean() * (1+self.SF) * train_sig.shape[0] )
+        train_bkg_wt = train_bkg[self._weight] * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_sig[self._weight].mean() * (1+self.SF) * train_bkg.shape[0] )
+        val_sig_wt = val_sig[self._weight] * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_sig[self._weight].mean() * (1+self.SF) * train_sig.shape[0] )
+        val_bkg_wt = val_bkg[self._weight] * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_bkg[self._weight].mean() * (1+self.SF) * train_bkg.shape[0] )
+        test_sig_wt = test_sig[self._weight]
+        test_bkg_wt = test_bkg[self._weight]
 
         self.m_train_wt[fold] = pd.concat([train_sig_wt, train_bkg_wt]).to_numpy()
         self.m_val_wt[fold] = pd.concat([val_sig_wt, val_bkg_wt]).to_numpy()
@@ -224,11 +253,9 @@ class XGBoostHandler(object):
         evals_result = {}
         eval_result_history = []
         try:
-            bst_temp = xgb.train(param, self.m_dTrain[fold], self.numRound, evals=evallist, early_stopping_rounds=self.early_stopping_rounds, evals_result=evals_result)
+            self.m_bst[fold] = xgb.train(param, self.m_dTrain[fold], self.numRound, evals=evallist, early_stopping_rounds=self.early_stopping_rounds, evals_result=evals_result)
         except KeyboardInterrupt:
             print('Finishing on SIGINT.')
-
-        self.m_bst[fold] = bst_temp
 
         # test model
         print('Test model.')
@@ -270,15 +297,15 @@ class XGBoostHandler(object):
     def save(self, fold=0):
 
         # create output directory
-        if not os.path.isdir('models'):
-            os.makedirs('models')
+        if not os.path.isdir(self._outputFolder):
+            os.makedirs(self._outputFolder)
 
         # save BDT model
-        if fold in self.m_bst.keys(): self.m_bst[fold].save_model('models/%s_%d.h5' % (self._region, fold))
+        if fold in self.m_bst.keys(): self.m_bst[fold].save_model('%s/%s_%d.h5' % (self._outputFolder, self._region, fold))
 
         # save score transformer
         if fold in self.m_tsf.keys(): 
-            with open('models/tsf_%s_%d.pkl' %(self._region, fold), 'wb') as f:
+            with open('%s/tsf_%s_%d.pkl' %(self._outputFolder, self._region, fold), 'wb') as f:
                 pickle.dump(self.m_tsf[fold], f, -1)
         
 
@@ -290,7 +317,6 @@ def main():
     xgb = XGBoostHandler(configPath, args.region)
 
     if args.params: xgb.setParams(args.params)
-    #xgb.setParams({'eval_metric': ['auc', 'logloss']})
 
     xgb.readData()
 
@@ -308,6 +334,7 @@ def main():
         print ' The #%d fold of training' %i
         print '==================================================='
 
+        #xgb.setParams({'eval_metric': ['auc', 'logloss']}, i)
         xgb.train(i)
         print("param: %s, Val AUC: %s" % xgb.getAUC(i))
 
