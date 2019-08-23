@@ -78,7 +78,7 @@ def sum_z(zs):
 
 def gettingsig(region,sigs,bkgs, boundaries, nscan, nbin, n_fold, transform):
 
-    f_bkg = ROOT.TFile('outputs/model_%s/bkg.root' % (region))
+    f_bkg = ROOT.TFile('outputs/%s/bkg.root' % (region))
     t_bkg = f_bkg.Get('test')
 
     h_bkg = []
@@ -91,7 +91,7 @@ def gettingsig(region,sigs,bkgs, boundaries, nscan, nbin, n_fold, transform):
     for i in range(len(boundaries[0])):
         nbkg.append(sum_hist_integral([hist_integral(h_bkg[fold], boundaries[fold][i], boundaries[fold][i+1]-1 if i != len(boundaries[0])-1 else nscan+1) for fold in range(n_fold)]))    
 
-    f_sig = ROOT.TFile('outputs/model_%s/sig.root' % (region))
+    f_sig = ROOT.TFile('outputs/%s/sig.root' % (region))
     t_sig = f_sig.Get('test')
 
     h_sig = []
@@ -117,10 +117,10 @@ def gettingsig(region,sigs,bkgs, boundaries, nscan, nbin, n_fold, transform):
 
 def categorizing(region,sigs,bkgs,nscan, minN, transform, nbin, floatB, n_fold, fold, earlystop):
 
-    f_sig = ROOT.TFile('outputs/model_%s/sig.root' % (region))
+    f_sig = ROOT.TFile('outputs/%s/sig.root' % (region))
     t_sig = f_sig.Get('test')
  
-    f_bkg = ROOT.TFile('outputs/model_%s/bkg.root' % (region))
+    f_bkg = ROOT.TFile('outputs/%s/bkg.root' % (region))
     t_bkg = f_bkg.Get('test')
 
     h_sig=ROOT.TH1F('h_sig','h_sig',nscan,0,1)
@@ -511,15 +511,15 @@ def main():
     if not args.skip:
         siglist=''
         for sig in sigs:
-            if os.path.isfile('outputs/model_%s/%s.root'% (region,sig)): siglist+=' outputs/model_%s/%s.root'% (region,sig)
-        os.system("hadd -f outputs/model_%s/sig.root"%(region)+siglist)
+            if os.path.isfile('outputs/%s/%s.root'% (region,sig)): siglist+=' outputs/%s/%s.root'% (region,sig)
+        os.system("hadd -f outputs/%s/sig.root"%(region)+siglist)
 
     #if not os.path.isfile('outputs/model_%s_%s/bkg.root' % (train_sig,region)):
     if not args.skip:
         bkglist=''
         for bkg in bkgs:
-            if os.path.isfile('outputs/model_%s/%s.root'% (region,bkg)): bkglist+=' outputs/model_%s/%s.root'% (region,bkg)
-        os.system("hadd -f outputs/model_%s/bkg.root"%(region)+bkglist)
+            if os.path.isfile('outputs/%s/%s.root'% (region,bkg)): bkglist+=' outputs/%s/%s.root'% (region,bkg)
+        os.system("hadd -f outputs/%s/bkg.root"%(region)+bkglist)
 
 
     n_fold = args.nfold

@@ -82,7 +82,7 @@ class ApplyXGBHandler(object):
                 if model in configs.keys():
                     config = configs[model]
                     if 'train_variables' in config.keys(): self.train_variables[model] = config['train_variables']
-                    if '+train_variables' in config.keys(): self.train_variables += config['+train_variables']
+                    if '+train_variables' in config.keys(): self.train_variables[model] += config['+train_variables']
 
 
     def loadTransformer(self, models=[]):
@@ -166,16 +166,17 @@ def main():
     xgb.loadModels(models)
     xgb.loadTransformer(models)
 
-    with open('data/inputs_config.json') as f:
-        config = json.load(f)
+#    with open('data/inputs_config.json') as f:
+#        config = json.load(f)
+#    sample_list = config['sample_list']
 
-    sample_list = config['sample_list']
+    categories = []
+    categories += ['ggF','VBF','VH','ttH']
+    categories += ['data_sid']
+    categories += ['Z', 'ttbar', 'diboson', 'stop']
 
-    for category in sample_list:
-        if category == 'Z': continue
+    for category in categories:
         xgb.applyBDT(category)
-
-    xgb.applyBDT('Z')
 
     return
 
