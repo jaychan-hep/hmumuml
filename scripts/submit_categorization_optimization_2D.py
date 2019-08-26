@@ -13,7 +13,7 @@
 import os
 from datetime import datetime
 from argparse import ArgumentParser
-from hmumuml.condor import condor_booklist
+from condor import condor_booklist
 
 def main():
 
