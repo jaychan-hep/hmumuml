@@ -155,10 +155,10 @@ def fit_BDT(hist, fitboundary, fitbin, function, fillbin, sf):
 def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nvbf, floatB, n_fold, fold, earlystop):
 
     # get inputs
-    f_sig = TFile('outputs/model_%s/sig.root' % (region))
+    f_sig = TFile('outputs/%s/sig.root' % (region))
     t_sig = f_sig.Get('test')
  
-    f_bkg = TFile('outputs/model_%s/bkg.root' % (region))
+    f_bkg = TFile('outputs/%s/bkg.root' % (region))
     t_bkg = f_bkg.Get('test')
 
     h_sig=TH1F('h_sig','h_sig',nscanvbf,0,1)

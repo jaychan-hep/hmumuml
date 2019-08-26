@@ -495,7 +495,7 @@ def main():
 
     sigs = ['ggF','VBF','VH','ttH']
 
-    bkgs = ['data']
+    bkgs = ['data_sid']
 
     if args.floatB and args.nbin == 16:
         print 'ERROR: With floatB option, the maximun nbin is 15!!'

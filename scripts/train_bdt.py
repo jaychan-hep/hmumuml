@@ -52,7 +52,6 @@ class XGBoostHandler(object):
 
         self._region = region
         self._inputFolder = 'skimmed_ntuples'
-        self._inputTree = 'Skimmed_Hmumu'
         self._outputFolder = 'models'
         self._chunksize = 500000
         self._branches = []
@@ -78,6 +77,7 @@ class XGBoostHandler(object):
         self.m_score_test_bkg = {}
         self.m_tsf = {}
 
+        self.inputTree = 'inclusive'
         self.train_signal = []
         self.train_background = []
         self.train_variables = []
@@ -186,7 +186,7 @@ class XGBoostHandler(object):
         for sig in sig_list: print 'XGB INFO: Adding signal sample: ', sig
         pbar = ProgressBar()
         #TODO put this to the config
-        for data in pbar(read_root(sorted(sig_list), key=self._inputTree, columns=self._branches, chunksize=self._chunksize)):
+        for data in pbar(read_root(sorted(sig_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize)):
             data = self.preselect(data, 'signal')
             self.m_data_sig = self.m_data_sig.append(data, ignore_index=True)
 
@@ -195,7 +195,7 @@ class XGBoostHandler(object):
         for bkg in bkg_list: print 'XGB INFO: Adding background sample: ', bkg
         pbar = ProgressBar()
         #TODO put this to the config
-        for data in pbar(read_root(sorted(bkg_list), key=self._inputTree, columns=self._branches, chunksize=self._chunksize)):
+        for data in pbar(read_root(sorted(bkg_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize)):
             data = self.preselect(data, 'background')
             self.m_data_bkg = self.m_data_bkg.append(data, ignore_index=True)
 
@@ -234,12 +234,15 @@ class XGBoostHandler(object):
 
         # setup the weights
         print 'XGB INFO: Setting the event weights...'
-        train_sig_wt = train_sig[self.weight] * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_sig[self.weight].mean() * (1+self.SF) * train_sig.shape[0] )
-        train_bkg_wt = train_bkg[self.weight] * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_sig[self.weight].mean() * (1+self.SF) * train_bkg.shape[0] )
-        val_sig_wt = val_sig[self.weight] * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_sig[self.weight].mean() * (1+self.SF) * train_sig.shape[0] )
-        val_bkg_wt = val_bkg[self.weight] * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_bkg[self.weight].mean() * (1+self.SF) * train_bkg.shape[0] )
-        test_sig_wt = test_sig[self.weight]
-        test_bkg_wt = test_bkg[self.weight]
+
+        if self.SF == -1: self.SF = 1.*len(train_sig_wt)/len(train_bkg_wt)
+
+        train_sig_wt = train_sig[[self.weight]] * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_sig[self.weight].mean() * (1.+self.SF) * train_sig.shape[0] )
+        train_bkg_wt = train_bkg[[self.weight]] * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_bkg[self.weight].mean() * (1.+self.SF) * train_bkg.shape[0] )
+        val_sig_wt = val_sig[[self.weight]] * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_sig[self.weight].mean() * (1.+self.SF) * train_sig.shape[0] )
+        val_bkg_wt = val_bkg[[self.weight]] * ( train_sig.shape[0] + train_bkg.shape[0] ) * self.SF / ( train_bkg[self.weight].mean() * (1.+self.SF) * train_bkg.shape[0] )
+        test_sig_wt = test_sig[[self.weight]]
+        test_bkg_wt = test_bkg[[self.weight]]
 
         self.m_train_wt[fold] = pd.concat([train_sig_wt, train_bkg_wt]).to_numpy()
         self.m_val_wt[fold] = pd.concat([val_sig_wt, val_bkg_wt]).to_numpy()
@@ -285,6 +288,24 @@ class XGBoostHandler(object):
         self.m_score_train[fold] = self.m_bst[fold].predict(self.m_dTrain[fold])
         self.m_score_test_sig[fold]  = self.m_bst[fold].predict(self.m_dTest_sig[fold])
         self.m_score_test_bkg[fold]  = self.m_bst[fold].predict(self.m_dTest_bkg[fold])
+
+    def plotScore(self, fold=0, sample_set='val'):
+
+        if sample_set == 'train':
+            plt.hist(self.m_score_train[fold], bins='auto')
+        elif sample_set == 'val':
+            plt.hist(self.m_score_val[fold], bins='auto')
+        elif sample_set == 'test':
+            plt.hist(self.m_score_test[fold], bins='auto')
+        plt.title('Score distribution %s' % sample_set)
+        plt.show()
+        if sample_set == 'test':
+            plt.hist(self.m_score_test_sig[fold], bins='auto')
+            plt.title('Score distribution test signal')
+            plt.show()
+            plt.hist(self.m_score_test_bkg[fold], bins='auto')
+            plt.title('Score distribution test background')
+            plt.show()
 
     def getAUC(self, fold=0, sample_set='val'):
 
@@ -350,6 +371,8 @@ def main():
         #xgb.setParams({'eval_metric': ['auc', 'logloss']}, i)
         xgb.train(i)
         print("param: %s, Val AUC: %s" % xgb.getAUC(i))
+
+        #xgb.plotScore(i, 'test')
 
         xgb.transformScore(i)
 

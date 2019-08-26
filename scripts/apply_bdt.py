@@ -13,6 +13,8 @@ import logging
 from pdb import set_trace
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
+pd.options.mode.chained_assignment = None
+
 def getArgs():
     """Get arguments from command line."""
     parser = ArgumentParser()
@@ -30,7 +32,7 @@ class ApplyXGBHandler(object):
 
         self._region = region
         self._inputFolder = 'skimmed_ntuples'
-        self._inputTree = 'Skimmed_Hmumu'
+        self._inputTree = region if region else 'inclusive'
         self._modelFolder = 'models'
         self._outputFolder = 'outputs'
         self._outputContainer = self._outputFolder + '/' + self._region
@@ -76,14 +78,13 @@ class ApplyXGBHandler(object):
 
                 # read from the common settings
                 config = configs["common"]
-                if 'train_variables' in config.keys(): self.train_variables[model] = config['train_variables']
-                    
+                if 'train_variables' in config.keys(): self.train_variables[model] = config['train_variables'][:]
+
                 # read from the region specific settings
                 if model in configs.keys():
                     config = configs[model]
-                    if 'train_variables' in config.keys(): self.train_variables[model] = config['train_variables']
+                    if 'train_variables' in config.keys(): self.train_variables[model] = config['train_variables'][:]
                     if '+train_variables' in config.keys(): self.train_variables[model] += config['+train_variables']
-
 
     def loadTransformer(self, models=[]):
         
@@ -116,43 +117,31 @@ class ApplyXGBHandler(object):
         print 'XGB INFO: Applying BDTs to %s samples...' % category
         for f in f_list: print 'XGB INFO: Including sample: ', f
         pbar = ProgressBar()
+
+
         #TODO put this to the config
         for data in pbar(read_root(sorted(f_list), key=self._inputTree, columns=branches, chunksize=self._chunksize)):
-            data = self.preselect(data)
-            for model in self.train_variables.keys():
-                index_Events = data[self._randomIndex]
-                x_Events = data[self.train_variables[model]]
-                dEvents = xgb.DMatrix(x_Events.values)
-                for i in range(4):
+            #data = self.preselect(data)
+
+            out_data = pd.DataFrame()
+
+            for i in range(4):
+                data_s = data[data[self._randomIndex]%4 == i]
+
+                for model in self.train_variables.keys():
+                    x_Events = data_s[self.train_variables[model]]
+                    dEvents = xgb.DMatrix(x_Events)
                     scores = self.m_models[model][i].predict(dEvents)
                     scores_t = self.m_tsfs[model][i].transform(scores.reshape(-1,1)).reshape(-1)
-                    
-                    index_Events = pd.concat([index_Events, pd.DataFrame(index=index_Events.index,data = {'xgb_%d' % i: scores,'tsf_%d' % i: scores_t})], axis=1)
+                
+                    xgb_basename = 'bdt_score' if model != 'VBF' else 'bdt_score_VBF'
+                    data_s[xgb_basename] = scores
+                    data_s[xgb_basename+'_t'] = scores_t
 
-                xgb_basename = 'bdt_score' if model != 'VBF' else 'bdt_score_VBF'
-                score_Events = index_Events.apply(lambda x: self.getScore(x) , axis=1, result_type='expand')
-                score_Events.columns = [xgb_basename, xgb_basename+'_t', xgb_basename+'_val', xgb_basename+'_val_t', xgb_basename+'_trainA', xgb_basename+'_trainA_t', xgb_basename+'_trainB', xgb_basename+'_trainB_t']
-                data = pd.concat([data, score_Events], axis=1)
-                data.to_root(output_path, key='test', mode='a', index=False)
+                    out_data = pd.concat([out_data, data_s], ignore_index=True, sort=False)
 
+            out_data.to_root(output_path, key='test', mode='a', index=False)
 
-    def getScore(self, x):
-
-        tag = x[self._randomIndex]%4
-        tag_val = (tag - 1)%4
-        tag_trainA = (tag - 2)%4
-        tag_trainB = (tag - 3)%4
-
-        bdt_score = x['xgb_%d' % tag]
-        bdt_score_t = x['tsf_%d' % tag]
-        bdt_score_val = x['xgb_%d' % tag_val]
-        bdt_score_val_t = x['tsf_%d' % tag_val]
-        bdt_score_trainA = x['xgb_%d' % tag_trainA]
-        bdt_score_trainA_t = x['tsf_%d' % tag_trainA]
-        bdt_score_trainB = x['xgb_%d' % tag_trainB]
-        bdt_score_trainB_t = x['tsf_%d' % tag_trainB]
-
-        return bdt_score, bdt_score_t, bdt_score_val, bdt_score_val_t, bdt_score_trainA, bdt_score_trainA_t, bdt_score_trainB, bdt_score_trainB_t 
 
 def main():
 
@@ -171,8 +160,8 @@ def main():
 #    sample_list = config['sample_list']
 
     categories = []
-    categories += ['ggF','VBF','VH','ttH']
-    categories += ['data_sid']
+    #categories += ['ggF','VBF','VH','ttH']
+    #categories += ['data_sid']
     categories += ['Z', 'ttbar', 'diboson', 'stop']
 
     for category in categories:

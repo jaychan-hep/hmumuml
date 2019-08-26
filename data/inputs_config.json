@@ -1,4 +1,4 @@
-{"sample_list": {"data":    ["data15", "data16", "data17 ", "data18"],
+{"sample_list": {"data_sid":    ["data15.allYear.sideband", "data16.allYear.sideband", "data17.allYear.sideband", "data18.allYear.sideband"],
                  "ttbar":   ["410472"],
                  "Z":       ["364100", "364101", "364102", "364103", "364104", "364105", "364106", "364107", "364108", "364109", "364110", "364111", "364112", "364113",
                              "366300", "366301", "366303", "366304", "366306"],

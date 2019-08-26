@@ -31,7 +31,7 @@ def arrange_cmd(channel,category,inputdir, skip):
             f0 = TFile('inputs/%s' % filename)
             t0 = f0.Get('DiMuonNtuple')
             f1 = TFile('skimmed_ntuples/%s/%s' % (category, filename))
-            t1 = f1.Get('Skimmed_Hmumu')
+            t1 = f1.Get('inclusive')
             if t0.GetEntries("FinalSelection && Muons_Minv_MuMu_Fsr >= 110 && SampleOverlapWeight && EventWeight_MCCleaning_5") == t1.GetEntries(): 
                 continue
             else:
@@ -42,7 +42,7 @@ def arrange_cmd(channel,category,inputdir, skip):
             print 'Missing %s!!' % filename
 
         if not os.path.isdir('skimmed_ntuples/%s' % category): os.makedirs('skimmed_ntuples/%s' % category)
-        cmd.append("python skim_ntuples.py -i inputs/%s -o skimmed_ntuples/%s/%s" % (filename, category, filename))
+        cmd.append("python scripts/skim_ntuples.py -i inputs/%s -o skimmed_ntuples/%s/%s" % (filename, category, filename))
 
     return cmd
 

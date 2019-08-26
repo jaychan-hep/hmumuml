@@ -72,7 +72,7 @@ def main():
     args = getArgs()
 
     variables = ['EventInfo_EventNumber', 'FinalSelection', 
-                 'Muons_*', 'Z_*', 'Jets_*', 'Event_MET', 'Event_MET_Phi',
+                 'Muons_*', 'Z_*', 'Jets_jetMultip', 'Jets_*_{Lead,Sub,jj}', 'Event_MET', 'Event_MET_Phi',
                  'GlobalWeight', 'SampleOverlapWeight', 'EventWeight_MCCleaning_5']
 
     if os.path.isfile(args.output): os.remove(args.output)
@@ -89,7 +89,13 @@ def main():
         data = decorate(data)
         final_events += data.shape[0]
         data.rename(columns={'Muons_Minv_MuMu_Fsr': 'm_mumu', 'EventInfo_EventNumber': 'eventNumber', 'Jets_jetMultip': 'n_j'}, inplace=True)
-        data.to_root(args.output, key='Skimmed_Hmumu', mode='a', index=False)
+        data_zero_jet = data[data.n_j == 0]
+        data_one_jet = data[data.n_j == 1]
+        data_two_jet = data[data.n_j >= 2]
+        data.to_root(args.output, key='inclusive', mode='a', index=False)
+        data_zero_jet.to_root(args.output, key='zero_jet', mode='a', index=False)
+        data_one_jet.to_root(args.output, key='one_jet', mode='a', index=False)
+        data_two_jet.to_root(args.output, key='two_jet', mode='a', index=False)
 
     meta_data = pd.DataFrame({'initial_events': [initial_events], 'final_events': [final_events]})
     meta_data.to_root(args.output, key='MetaData', mode='a', index=False)

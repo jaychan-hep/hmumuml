@@ -33,7 +33,7 @@ def main():
 
     sample_list = config['sample_list']
 
-    condor_list = condor_booklist('submit_skim_ntuples.sh', 'skim_ntuples')
+    condor_list = condor_booklist('scripts/submit_skim_ntuples.sh', 'skim_ntuples')
     condor_list.initialdir_in_arguments()
     condor_list.set_JobFlavour('longlunch')
 
