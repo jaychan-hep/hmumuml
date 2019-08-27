@@ -13,5 +13,5 @@ export THEANO_FLAGS="gcc.cxxflags='-march=core2'"
 export PATH="`pwd`/scripts:${PATH}"
 export PYTHONPATH="`pwd`/scripts:${PYTHONPATH}"
 
-export PYTHONPATH="`pwd`/hmumuml:$PYTHONPATH"
 export PATH="`pwd`/hmumuml:$PATH"
+export PYTHONPATH="`pwd`/hmumuml:$PYTHONPATH"
