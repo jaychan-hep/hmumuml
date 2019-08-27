@@ -13,27 +13,15 @@ git clone ssh://git@gitlab.cern.ch:7999/HZZ/HZZSoftware/Hmumu/hmumuml.git [-b yo
 cd HmumuML
 ```
 
-Then, setup the virtualenv:
+Then,
 
 ```
-setupATLAS
-lsetup "root  6.12.06-x86_64-slc6-gcc62-opt"
-lsetup python
-virtualenv --python=python2.7 ve
-source ve/bin/activate
-```
-
-Then, checkout necessary packages:
-
-```
-pip install pip --upgrade
-pip install h5py sklearn matplotlib tabulate xgboost pandas root_pandas progressbar
-pip install --upgrade https://github.com/rootpy/root_numpy/zipball/master
+source scripts/install.sh
 ```
 
 ### Normal setup on lxplus
 
-After setting up the environment for the first time, you can return to this setup by doing `source scripts/setup_lxplus.sh`
+After setting up the environment for the first time, you can return to this setup by doing `source scripts/setup.sh`
 
 ## Scripts to run the tasks
 
