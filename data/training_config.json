@@ -8,7 +8,7 @@
               "preselections": ["m_mumu >= 120", "m_mumu <= 130"],
               "#signal_preselections": ["m_mumu >= 120", "m_mumu <= 130"],
               "#background_preselections": ["m_mumu >= 120", "m_mumu <= 130"],
-              "observables": ["m_mumu"], "randomIndex": "eventNumber", "weight": "weight"
+              "randomIndex": "eventNumber", "weight": "weight"
               },
  "zero_jet": {"#+preselections": ["n_j == 0"],
               "inputTree": "zero_jet",
