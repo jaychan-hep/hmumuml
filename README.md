@@ -27,83 +27,72 @@ Then, checkout necessary packages:
 
 ```
 pip install pip --upgrade
-pip install h5py sklearn matplotlib tabulate xgboost
+pip install h5py sklearn matplotlib tabulate xgboost pandas root_pandas progressbar
 pip install --upgrade https://github.com/rootpy/root_numpy/zipball/master
 ```
 
 ### Normal setup on lxplus
 
-After setting up the environment for the first time, you can return to this setup by doing `source setup_lxplus.sh`
+After setting up the environment for the first time, you can return to this setup by doing `source scripts/setup_lxplus.sh`
 
 ## Scripts to run the tasks
 
 ### Producing training inputs and reduced root-files which the trained model will be applied to
 
-The core script is `process_arrays.py`. The script will apply the given preselection cuts to input samples and produce corresponding ntuples, numpy arrays files, and a text file containing the information of averaged weight of the sample. You can directly run it for any specified input files. Since there are too many samples in H->mumu, it is more convinient and time-efficient to use `SubmitProcessArrays.py` which will find all of the input files and run the core script by submitting the condor jobs.
+The core script is `skim_ntuples.py`. The script will apply the given skimming cuts to input samples and produce corresponding skimmed ntuples. You can run it locally for any specified input files. In H->mumu, it is more convenient and time-efficient to use `submit_skim_ntuples.py` which will find all of the input files specified in `data/inputs_config.json` and run the core script by submitting the condor jobs.
 
+- The script is hard-coded currently, meaning one needs to directly modify the core script to change the variable calculation and the skimming cuts.
+- The output files (skimmed ntuples) will be saved to the folder named `skimmed_ntuples` by default.
+- `submit_skim_ntuples.py` will only submit the jobs for those files that don't exist in the output folder.
 
 ```
-python SubmitProcessArrays.py
+python scripts/submit_skim_ntuples.py
 ```
 or
 ```
-python process_arrays.py [-n INPUT_FILE_NAME] [-r REGION] [-s SECTION] [-c CATEGORY] [-d]
-
-Usage:
-  -n, --name          The name of the input root-file. The mother folder ('inputs/') shall not be included in the name. 
-  -r, --region        The region of interest. Choices: 'zero_jet', 'one_jet', or 'two_jet'.
-  -s, --section       The section to run. Choices: -1, 0, 1, 2, 3.
-  -c, --category      Define the category that the input sample belongs to. This will put the output files with the same category into the same container.
-  -d, --isdata        Is data or not
+python scripts/skim_ntuples.py [-i input_file_path] [-o output_file_path]
 ```
 
-### Check if the training inpnuts and reduced root-files are complete
+### Check the completeness of the jobs or recover the incomplete jobs
 
-The script `CheckArraysComplete.py` will check if all of the outputs from last step exist and create a text file which summarizes the missing files and can be used to recover the missing files.
+The script `run_skim_ntuples.py` will check if all of the outputs from last step exist and if the resulting number of events is correct.
 
 ```
-python CheckArraysComplete.py
+python scripts/run_skim_ntuples.py [-c]
+
+usage:
+  -c   check the completeness only (without recovering the incomplete jobs)
+  -s   skip checking the resulting number of events
 ``` 
 
-### Recover the missing files and bad files
+Please be sure to do `python run_skim_ntuples.py -c` at least once before starting the BDT training exercise.
 
-After checking the completeness, if there are missing files, you can either run the recover script locally:
-
-```
-python RecoverMissingFiles.py -m
-```
-
-Or resubmit the jobs for the missing files:
-
-```
-python SubmitRecoverMissingFiles.py
-```
 
 ### Start XGBoost analysis!
 
-The whole ML task consists of training, applying the weights, plotting BDT distribution, optimizing the BDT boundaries for categorization, and calculating the number counting significances. The wrapper script `run_training.sh` will run everything. Please have a look!
+The whole ML task consists of training, applying the weights, optimizing the BDT boundaries for categorization, and calculating the number counting significances. The wrapper script `run_all.sh` will run everything. Please have a look!
 
 #### Training a model
 
-The training script `train_bdt.py` will train the model in four-fold, and transform the output scores such that the unweighted signal distribution is flat.
+The training script `train_bdt.py` will train the model in four-fold, and transform the output scores such that the unweighted signal distribution is flat. The detailed settings, including the preselections, training variables, hyperparameters, etc, are specified in the config file `data/training_config.json`.
 
 ```
-python train_bdt.py [-r REGION] [-f FOLD] [--VBF] [--ROC] [--save]
+python scripts/train_bdt.py [-r TRAINED_MODEL] [-f FOLD] [--save]
 
 Usage:
-  -r, --region        The region of interest. Choices: 'zero_jet', 'one_jet', or 'two_jet'.
+  -r, --region        The model to be trained. Choices: 'zero_jet', 'one_jet', 'two_jet' or 'VBF'.
   -f, --fold          Which fold to run. Default is -1 (run all folds)
-  --VBF               To train VBF classifier
-  --roc               To plot the ROC curve or not.
   --save              To save the model into HDF5 files, and the pickle files
 ```
 
 #### Applying the weights
 
-Applying the trained model (as well as the score transformation)  to the reduced ntuples to get BDT scores for each event can be done by doing:
+Applying the trained model (as well as the score transformation) to the skimmed ntuples to get BDT scores for each event can be done by doing:
 ```
-python applyBDTWeight.py [-r REGION]
+python scripts/apply_bdt.py [-r REGION]
 ```
+The script will take the settings specified in the training config file `data/training_config.json` and the applying config file `data/apply_config.json`.
+
 #### Optimizing the BDT boundaries
 
 `categorization_1D.py` will take the Higgs classifier scores of the samples and optimized the boundaries that give the best combined significance. `submit_categorization_optimization_2D.py` will submit the jobs for optimizing the 2D scan of the BDT boundaries using both Higgs and VBF classifiers. Note that `submit_categorization_optimization_2D.py` can only be run after `categorization_1D.py` has been run at least once.
