@@ -160,8 +160,8 @@ def main():
 #    sample_list = config['sample_list']
 
     categories = []
-    #categories += ['ggF','VBF','VH','ttH']
-    #categories += ['data_sid']
+    categories += ['ggF','VBF','VH','ttH']
+    categories += ['data_sid']
     categories += ['Z', 'ttbar', 'diboson', 'stop']
 
     for category in categories:
