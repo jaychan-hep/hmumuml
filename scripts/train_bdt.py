@@ -91,10 +91,10 @@ class XGBoostHandler(object):
         self.numRound = 10000
         self.SF = 1.
 
-        self.readConfig(configPath, self._region)
+        self.readConfig(configPath)
         self.checkConfig()
 
-    def readConfig(self, configPath, region):
+    def readConfig(self, configPath):
         """Read configuration file formated in json to extract information to fill TemplateMaker variables."""
         try:
             member_variables = [attr for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("_") and not attr.startswith('m_')]
@@ -109,8 +109,8 @@ class XGBoostHandler(object):
                     setattr(self, member, config[member])
 
             # read from the region specific settings
-            if region:
-                config = configs[region]
+            if self._region:
+                config = configs[self._region]
                 for member in config.keys():
                     if member in member_variables:
                         setattr(self, member, config[member])
