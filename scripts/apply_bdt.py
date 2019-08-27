@@ -180,7 +180,7 @@ class ApplyXGBHandler(object):
 
         #TODO put this to the config
         for data in pbar(read_root(sorted(f_list), key=self._inputTree, columns=self._branches, chunksize=self._chunksize)):
-            #data = self.preselect(data)
+            data = self.preselect(data)
 
             out_data = pd.DataFrame()
 
