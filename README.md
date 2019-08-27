@@ -37,7 +37,7 @@ After setting up the environment for the first time, you can return to this setu
 
 ## Scripts to run the tasks
 
-### Producing training inputs and reduced root-files which the trained model will be applied to
+### Prepare the training inputs (skimmed ntuples)
 
 The core script is `skim_ntuples.py`. The script will apply the given skimming cuts to input samples and produce corresponding skimmed ntuples. You can run it locally for any specified input files. In H->mumu, it is more convenient and time-efficient to use `submit_skim_ntuples.py` which will find all of the input files specified in `data/inputs_config.json` and run the core script by submitting the condor jobs.
 
