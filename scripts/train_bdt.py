@@ -87,7 +87,7 @@ class XGBoostHandler(object):
         self.randomIndex = 'eventNumber'
         self.weight = 'weight'
         self.params = [{'eval_metric': ['auc', 'logloss']}]
-        self.early_stopping_rounds = 20
+        self.early_stopping_rounds = 10
         self.numRound = 10000
         self.SF = 1.
 
