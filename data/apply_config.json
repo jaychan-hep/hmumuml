@@ -1,0 +1,5 @@
+{"common":   {"observables": ["m_mumu", "eventNumber", "weight"], "preselections": ["m_mumu >= 110", "m_mumu <= 180"]},
+ "zero_jet": {"#+preselections": ["n_j == 0"], "models": {"zero_jet": "bdt_score"}},
+ "one_jet":  {"#+preselections": ["n_j == 1"], "models": {"one_jet": "bdt_score"}},
+ "two_jet":  {"#+preselections": ["n_j >= 2"], "models": {"two_jet": "bdt_score", "VBF": "bdt_score_VBF"}}
+}

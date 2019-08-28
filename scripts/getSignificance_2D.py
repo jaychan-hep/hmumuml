@@ -71,7 +71,7 @@ def sum_z(zs):
 
 def gettingsig(region, boundaries_VBF, boundaries, nscanvbf, nscan, nfold, transform):
 
-    f_bkg = ROOT.TFile('outputs/model_%s/bkg.root' % (region))
+    f_bkg = ROOT.TFile('outputs/%s/bkg.root' % (region))
     t_bkg = f_bkg.Get('test')
 
     h_bkg = []
@@ -87,7 +87,7 @@ def gettingsig(region, boundaries_VBF, boundaries, nscanvbf, nscan, nfold, trans
         nbkg.append(sum_hist_integral([hist_integral(h_bkg[fold], 1, boundaries_VBF[fold][0]-1, boundaries[fold][i], boundaries[fold][i+1]-1 if i != len(boundaries[0])-1 else nscan+1) for fold in range(nfold)]))
 
 
-    f_sig = ROOT.TFile('outputs/model_%s/sig.root' % (region))
+    f_sig = ROOT.TFile('outputs/%s/sig.root' % (region))
     t_sig = f_sig.Get('test')
 
     h_sig = []

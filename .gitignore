@@ -1,5 +1,3 @@
-AppInputs
-arrays
 models
 bdt_plots
 cat_opt
@@ -10,3 +8,5 @@ outputs_2D
 significances
 ve
 *pyc
+skimmed_ntuples
+features_plots
