@@ -42,11 +42,11 @@ class XGBoostHandler(object):
    ***   ***    ##     $$       ##       ***  ***  #  # #  # %
     *     *     ###### $$$$$$$   ######    ****    #   #   # %%%%%
 
-        XX      XX         GGGGGG         BBBBB 
-          XX  XX         GGG              B    BB
-            XX          GG     GGGG       BBBBB
-          XX  XX         GGG     GG       B    BB
-        XX      XX         GGGGGG         BBBBB
+   $$$$$$$$$$    ####          XX      XX     GGGGGG     BBBBB 
+       $$      ###  ###          XX  XX     GGG          B    BB
+       $$     ##      ##           XX      GG     GGGG   BBBBB
+       $$      ###  ###          XX  XX     GGG     GG   B    BB
+       $$        ####          XX      XX     GGGGGG     BBBBB
               """
 
 
