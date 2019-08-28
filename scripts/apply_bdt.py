@@ -30,6 +30,10 @@ class ApplyXGBHandler(object):
 
     def __init__(self, configPath, region=''):
 
+        print '==============================='
+        print '  ApplyXGBHandler initialized'
+        print '==============================='
+
         self._region = region
         self._inputFolder = ''
         self._inputTree = region if region else 'inclusive'
@@ -145,6 +149,7 @@ class ApplyXGBHandler(object):
 
         if self.models:
             for model in self.models:
+                print 'XGB INFO: Loading BDT model: ', model
                 self.m_models[model] = []
                 for i in range(4):
                     bst = xgb.Booster()
@@ -156,6 +161,7 @@ class ApplyXGBHandler(object):
         
         if self.models:
             for model in self.models:
+                print 'XGB INFO: Loading score transformer for model: ', model
                 self.m_tsfs[model] = []
                 for i in range(4):
                     tsf = pickle.load(open('%s/tsf_%s_%d.pkl'%(self._modelFolder, model, i), "rb" ) )
