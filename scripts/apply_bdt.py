@@ -203,7 +203,7 @@ class ApplyXGBHandler(object):
                     data_s[xgb_basename] = scores
                     data_s[xgb_basename+'_t'] = scores_t
 
-                    out_data = pd.concat([out_data, data_s], ignore_index=True, sort=False)
+                out_data = pd.concat([out_data, data_s], ignore_index=True, sort=False)
 
             out_data.to_root(output_path, key='test', mode='a', index=False)
 
