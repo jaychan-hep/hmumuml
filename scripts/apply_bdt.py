@@ -118,11 +118,17 @@ class ApplyXGBHandler(object):
     def arrangeBranches(self):
 
         self._branches = set()
-        for model in self.train_variables.keys():
+        for model in self.models:
             self._branches = self._branches | set(self.train_variables[model])
 
         self._branches = self._branches | set([self.weight, self.randomIndex]) | set([p.split()[0] for p in self.preselections]) | set(self.observables)
         self._branches = list(self._branches)
+
+        for model in self.models:
+            self.train_variables[model] = [x.replace('noexpand:', '') for x in self.train_variables[model]]
+        self.preselections = [x.replace('noexpand:', '') for x in self.preselections]
+        self.randomIndex = self.randomIndex.replace('noexpand:', '')
+        self.weight = self.weight.replace('noexpand:', '')
 
     def arrangePreselections(self):
 
@@ -167,7 +173,7 @@ class ApplyXGBHandler(object):
                     tsf = pickle.load(open('%s/tsf_%s_%d.pkl'%(self._modelFolder, model, i), "rb" ) )
                     self.m_tsfs[model].append(tsf)
 
-    def applyBDT(self, category):
+    def applyBDT(self, category, scale=1):
 
         outputContainer = self._outputFolder + '/' + self._region
         output_path = outputContainer + '/%s.root' % category
@@ -187,6 +193,7 @@ class ApplyXGBHandler(object):
         #TODO put this to the config
         for data in pbar(read_root(sorted(f_list), key=self._inputTree, columns=self._branches, chunksize=self._chunksize)):
             data = self.preselect(data)
+            data[self.weight] = data[self.weight] * scale
 
             out_data = pd.DataFrame()
 

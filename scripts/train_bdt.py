@@ -127,6 +127,13 @@ class XGBoostHandler(object):
 
             self._branches = list( set(self.train_variables) | set([p.split()[0] for p in self.preselections]) | set([p.split()[0] for p in self.signal_preselections]) | set([p.split()[0] for p in self.background_preselections]) | set([self.randomIndex, self.weight]))
 
+            self.train_variables = [x.replace('noexpand:', '') for x in self.train_variables]
+            self.preselections = [x.replace('noexpand:', '') for x in self.preselections]
+            self.signal_preselections = [x.replace('noexpand:', '') for x in self.signal_preselections]
+            self.background_preselections = [x.replace('noexpand:', '') for x in self.background_preselections]
+            self.randomIndex = self.randomIndex.replace('noexpand:', '')
+            self.weight = self.weight.replace('noexpand:', '')
+
             if self.preselections:
                 self.preselections = ['data.' + p for p in self.preselections]
             if self.signal_preselections:
@@ -151,6 +158,9 @@ class XGBoostHandler(object):
             fold = 0
         for key in params:
             self.params[fold][key] = params[key]
+
+    def set_early_stopping_rounds(self, rounds):
+        self.early_stopping_rounds = rounds
 
     def setInputFolder(self, inputFolder):
         self._inputFolder = inputFolder
@@ -371,6 +381,7 @@ def main():
         print '==================================================='
 
         #xgb.setParams({'eval_metric': ['auc', 'logloss']}, i)
+        xgb.set_early_stopping_rounds(20)
         xgb.train(i)
         print("param: %s, Val AUC: %s" % xgb.getAUC(i))
 

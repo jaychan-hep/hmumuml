@@ -1,6 +1,6 @@
 {"common":   {"train_signal": ["ggF", "VBF"],
               "train_background": ["Z", "ttbar"],
-              "train_variables": ["Z_PT_FSR", "Z_Y_FSR", "Muons_CosThetaStar",
+              "train_variables": ["Z_PT_FSR", "Z_Y_FSR", "noexpand:fabs(Muons_CosThetaStar)",
                                   "Jets_PT_Lead", "Jets_Eta_Lead", "DeltaPhi_mumumj1",
                                   "Jets_PT_Sub", "Jets_Eta_Sub", "DeltaPhi_mumumj2",
                                   "Jets_PT_jj", "Jets_Y_jj", "DeltaPhi_mumujj", "Jets_Minv_jj"
