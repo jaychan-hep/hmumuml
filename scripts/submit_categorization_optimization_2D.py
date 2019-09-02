@@ -23,9 +23,9 @@ def main():
     condor_list.initialdir_in_arguments()
     condor_list.set_JobFlavour('longlunch')
 
-    for i in range(3,4):
-        for j in range(3,4):
-            if i!=j: continue
+    for i in range(1,9):
+        for j in range(1,9):
+            #if i!=j: continue
             #for k in range(80,180):
             for k in range(40,90):
                 if os.path.isfile('cat_opt/two_jet/%d_%d/%d.json'%(j,i,k)): continue

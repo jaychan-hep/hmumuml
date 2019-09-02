@@ -17,7 +17,7 @@ from ROOT import *
 #import time
 import pandas as pd
 from root_pandas import *
-from progressbar import ProgressBar
+from tqdm import tqdm
 
 def getArgs():
     parser = ArgumentParser(description="Skim the input ntuples for Hmumu XGBoost analysis.")
@@ -44,9 +44,8 @@ def compute_Delta_Phi(x, var, min_jet=0):
 def preselect(data):
 
     data = data[data.Muons_Minv_MuMu_Fsr >= 110]
-    #data = data[data.Jets_jetMultip >= 2]
     data = data[data.FinalSelection == True]
-    data = data[data.SampleOverlapWeight == True]
+    data = data[data.SampleOverlapWeight != False]
     data = data[data.EventWeight_MCCleaning_5 != 0]
 
     return data
@@ -64,6 +63,11 @@ def decorate(data):
     data['DeltaPhi_mumujj'] = data.apply(lambda x: compute_Delta_Phi(x, 'Jets_Phi_jj', min_jet=2), axis=1)
     data['DeltaPhi_mumuMET'] = data.apply(lambda x: compute_Delta_Phi(x, 'Event_MET_Phi'), axis=1)
 
+    data.rename(columns={'Muons_Minv_MuMu_Fsr': 'm_mumu', 'EventInfo_EventNumber': 'eventNumber', 'Jets_jetMultip': 'n_j'}, inplace=True)
+    data.drop(['FinalSelection', 'GlobalWeight', 'SampleOverlapWeight', 'EventWeight_MCCleaning_5'], axis=1, inplace=True)
+    data = data.astype(float)
+    data = data.astype({"n_j": int, 'eventNumber': int})
+
     return data
     
 
@@ -72,7 +76,7 @@ def main():
     args = getArgs()
 
     variables = ['EventInfo_EventNumber', 'FinalSelection', 
-                 'Muons_*', 'Z_*', 'Jets_jetMultip', 'Jets_*_{Lead,Sub,jj}', 'Event_MET', 'Event_MET_Phi',
+                 'Muons_{Minv_MuMu_Fsr,CosThetaStar}', 'Muons_*_{Lead,Sub}', 'Z_*', 'Jets_jetMultip', 'Jets_*_{Lead,Sub,jj}', 'Event_MET', 'Event_MET_Phi',
                  'GlobalWeight', 'SampleOverlapWeight', 'EventWeight_MCCleaning_5']
 
     if os.path.isfile(args.output): os.remove(args.output)
@@ -80,15 +84,13 @@ def main():
     initial_events = 0
     final_events = 0
 
-    pbar = ProgressBar()
-    for data in pbar(read_root(args.input, key='DiMuonNtuple', columns=variables, chunksize=args.chunksize)):
+    for data in tqdm(read_root(args.input, key='DiMuonNtuple', columns=variables, chunksize=args.chunksize), desc='Processing %s' % args.input, ncols=100):
 
         initial_events += data.shape[0]
         #data = preprocess(data)
         data = preselect(data) #TODO add cutflow
         data = decorate(data)
         final_events += data.shape[0]
-        data.rename(columns={'Muons_Minv_MuMu_Fsr': 'm_mumu', 'EventInfo_EventNumber': 'eventNumber', 'Jets_jetMultip': 'n_j'}, inplace=True)
         data_zero_jet = data[data.n_j == 0]
         data_one_jet = data[data.n_j == 1]
         data_two_jet = data[data.n_j >= 2]

@@ -8,7 +8,7 @@ from root_pandas import *
 import pickle
 from sklearn.preprocessing import StandardScaler, QuantileTransformer
 import xgboost as xgb
-from progressbar import ProgressBar
+from tqdm import tqdm
 import logging
 from pdb import set_trace
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
@@ -186,12 +186,10 @@ class ApplyXGBHandler(object):
             if f.endswith('.root'): f_list.append(cat_folder + '/' + f)
 
         print '-------------------------------------------------'
-        print 'XGB INFO: Applying BDTs to %s samples...' % category
         for f in f_list: print 'XGB INFO: Including sample: ', f
-        pbar = ProgressBar()
 
         #TODO put this to the config
-        for data in pbar(read_root(sorted(f_list), key=self._inputTree, columns=self._branches, chunksize=self._chunksize)):
+        for data in tqdm(read_root(sorted(f_list), key=self._inputTree, columns=self._branches, chunksize=self._chunksize), ncols=100, desc='XGB INFO: Applying BDTs to %s samples' % category):
             data = self.preselect(data)
             data[self.weight] = data[self.weight] * scale
 

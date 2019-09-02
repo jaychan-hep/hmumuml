@@ -12,7 +12,7 @@ import xgboost as xgb
 from tabulate import tabulate
 #from bayes_opt import BayesianOptimization
 import matplotlib.pyplot as plt
-from progressbar import ProgressBar
+from tqdm import tqdm
 import logging
 from pdb import set_trace
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
@@ -194,20 +194,18 @@ class XGBoostHandler(object):
                 if bkg.endswith('.root'): bkg_list.append(bkg_cat_folder + '/' + bkg)
 
         print '-------------------------------------------------'
-        print 'XGB INFO: Loading training signals...'
+        #print 'XGB INFO: Loading training signals...'
         for sig in sig_list: print 'XGB INFO: Adding signal sample: ', sig
-        pbar = ProgressBar()
         #TODO put this to the config
-        for data in pbar(read_root(sorted(sig_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize)):
+        for data in tqdm(read_root(sorted(sig_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize), desc='XGB INFO: Loading training signals', ncols=100):
             data = self.preselect(data, 'signal')
             self.m_data_sig = self.m_data_sig.append(data, ignore_index=True)
 
         print '----------------------------------------------------------'
-        print 'XGB INFO: Loading training backgrounds...'
+        #print 'XGB INFO: Loading training backgrounds...'
         for bkg in bkg_list: print 'XGB INFO: Adding background sample: ', bkg
-        pbar = ProgressBar()
         #TODO put this to the config
-        for data in pbar(read_root(sorted(bkg_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize)):
+        for data in tqdm(read_root(sorted(bkg_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize), desc='XGB INFO: Loading training backgrounds', ncols=100):
             data = self.preselect(data, 'background')
             self.m_data_bkg = self.m_data_bkg.append(data, ignore_index=True)
 
