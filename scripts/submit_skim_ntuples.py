@@ -20,7 +20,7 @@ def arrange_samplelist(channel,category,inputdir):
         if '.root' not in filename: continue
         if os.path.isfile('skimmed_ntuples/%s/%s' % (category, filename)): continue
         if not os.path.isdir('skimmed_ntuples/%s' % category): os.makedirs('skimmed_ntuples/%s' % category)
-        samples.append("inputs/%s skimmed_ntuples/%s/%s" % (filename, category, filename))
+        samples.append("%s/%s skimmed_ntuples/%s/%s" % (inputdir, filename, category, filename))
     return samples
 
 def main():

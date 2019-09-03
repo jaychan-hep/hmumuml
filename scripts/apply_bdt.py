@@ -8,7 +8,7 @@ from root_pandas import *
 import pickle
 from sklearn.preprocessing import StandardScaler, QuantileTransformer
 import xgboost as xgb
-from progressbar import ProgressBar
+from tqdm import tqdm
 import logging
 from pdb import set_trace
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
@@ -118,11 +118,17 @@ class ApplyXGBHandler(object):
     def arrangeBranches(self):
 
         self._branches = set()
-        for model in self.train_variables.keys():
+        for model in self.models:
             self._branches = self._branches | set(self.train_variables[model])
 
         self._branches = self._branches | set([self.weight, self.randomIndex]) | set([p.split()[0] for p in self.preselections]) | set(self.observables)
         self._branches = list(self._branches)
+
+        for model in self.models:
+            self.train_variables[model] = [x.replace('noexpand:', '') for x in self.train_variables[model]]
+        self.preselections = [x.replace('noexpand:', '') for x in self.preselections]
+        self.randomIndex = self.randomIndex.replace('noexpand:', '')
+        self.weight = self.weight.replace('noexpand:', '')
 
     def arrangePreselections(self):
 
@@ -167,7 +173,7 @@ class ApplyXGBHandler(object):
                     tsf = pickle.load(open('%s/tsf_%s_%d.pkl'%(self._modelFolder, model, i), "rb" ) )
                     self.m_tsfs[model].append(tsf)
 
-    def applyBDT(self, category):
+    def applyBDT(self, category, scale=1):
 
         outputContainer = self._outputFolder + '/' + self._region
         output_path = outputContainer + '/%s.root' % category
@@ -180,13 +186,12 @@ class ApplyXGBHandler(object):
             if f.endswith('.root'): f_list.append(cat_folder + '/' + f)
 
         print '-------------------------------------------------'
-        print 'XGB INFO: Applying BDTs to %s samples...' % category
         for f in f_list: print 'XGB INFO: Including sample: ', f
-        pbar = ProgressBar()
 
         #TODO put this to the config
-        for data in pbar(read_root(sorted(f_list), key=self._inputTree, columns=self._branches, chunksize=self._chunksize)):
+        for data in tqdm(read_root(sorted(f_list), key=self._inputTree, columns=self._branches, chunksize=self._chunksize), ncols=100, desc='XGB INFO: Applying BDTs to %s samples' % category):
             data = self.preselect(data)
+            data[self.weight] = data[self.weight] * scale
 
             out_data = pd.DataFrame()
 

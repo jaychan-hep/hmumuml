@@ -7,7 +7,7 @@ source ve/bin/activate
 
 # install packages
 pip install pip --upgrade
-pip install h5py sklearn matplotlib tabulate xgboost pandas root_pandas progressbar
+pip install h5py sklearn matplotlib tabulate xgboost pandas root_pandas tqdm
 pip install --upgrade https://github.com/rootpy/root_numpy/zipball/master
 
 # setting python path
