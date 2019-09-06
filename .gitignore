@@ -4,9 +4,9 @@ cat_opt
 *.cc
 condor
 outputs
-outputs_2D
 significances
 ve
 *pyc
 skimmed_ntuples
 features_plots
+fitInputs
