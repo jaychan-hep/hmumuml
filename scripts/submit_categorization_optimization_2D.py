@@ -25,7 +25,7 @@ def main():
 
     for i in range(1,9):
         for j in range(1,9):
-            #if i != 3 or j != 3: continue
+            if i != 3 or j != 3: continue
             #if i!=j: continue
             #for k in range(80,180):
             for k in range(40,90):
