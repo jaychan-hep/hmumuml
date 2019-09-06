@@ -532,7 +532,7 @@ def main():
         boundaries_values.append(bound_value)
         smaxs.append(smax)
 
-    smax = sum(smaxs)
+    smax = sum(smaxs)/n_fold
     print 'Averaged significance: ', smax
 
     s, u = gettingsig(region,sigs,bkgs, boundaries, nscan, args.nbin, n_fold, args.transform)
