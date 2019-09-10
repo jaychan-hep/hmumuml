@@ -58,8 +58,8 @@ def decorate(data):
     data['Jets_Y_jj'] = data.apply(lambda x: compute_Y_jj(x), axis=1)
     data['DeltaPhi_mumumu1'] = data.apply(lambda x: compute_Delta_Phi(x, 'Muons_Phi_Lead'), axis=1)
     data['DeltaPhi_mumumu2'] = data.apply(lambda x: compute_Delta_Phi(x, 'Muons_Phi_Sub'), axis=1)
-    data['DeltaPhi_mumumj1'] = data.apply(lambda x: compute_Delta_Phi(x, 'Jets_Phi_Lead', min_jet=1), axis=1)
-    data['DeltaPhi_mumumj2'] = data.apply(lambda x: compute_Delta_Phi(x, 'Jets_Phi_Sub', min_jet=2), axis=1)
+    data['DeltaPhi_mumuj1'] = data.apply(lambda x: compute_Delta_Phi(x, 'Jets_Phi_Lead', min_jet=1), axis=1)
+    data['DeltaPhi_mumuj2'] = data.apply(lambda x: compute_Delta_Phi(x, 'Jets_Phi_Sub', min_jet=2), axis=1)
     data['DeltaPhi_mumujj'] = data.apply(lambda x: compute_Delta_Phi(x, 'Jets_Phi_jj', min_jet=2), axis=1)
     data['DeltaPhi_mumuMET'] = data.apply(lambda x: compute_Delta_Phi(x, 'Event_MET_Phi'), axis=1)
 
