@@ -76,7 +76,7 @@ def main():
     args = getArgs()
 
     variables = ['EventInfo_EventNumber', 'FinalSelection', 
-                 'Muons_{Minv_MuMu_Fsr,CosThetaStar}', 'Muons_*_{Lead,Sub}', 'Z_*', 'Jets_jetMultip', 'Jets_*_{Lead,Sub,jj}', 'Event_MET', 'Event_MET_Phi',
+                 'Muons_{Minv_MuMu_Fsr,CosThetaStar}', 'Muons_*_{Lead,Sub}', 'Z_*', 'Jets_jetMultip', 'Jets_*_{Lead,Sub,jj}', 'Event_MET', 'Event_MET_Phi', 'Event_Ht',
                  'GlobalWeight', 'SampleOverlapWeight', 'EventWeight_MCCleaning_5']
 
     if os.path.isfile(args.output): os.remove(args.output)
