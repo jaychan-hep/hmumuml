@@ -42,6 +42,7 @@ class ApplyXGBHandler(object):
         self._chunksize = 500000
         self._category = []
         self._branches = []
+        self._outbranches = []
 
         self.m_models = {}
         self.m_tsfs = {}
@@ -130,6 +131,8 @@ class ApplyXGBHandler(object):
         self.randomIndex = self.randomIndex.replace('noexpand:', '')
         self.weight = self.weight.replace('noexpand:', '')
 
+        self._outbranches = [branch for branch in self._branches if 'noexpand' not in branch]
+
     def arrangePreselections(self):
 
         if self.preselections:
@@ -197,6 +200,7 @@ class ApplyXGBHandler(object):
 
             for i in range(4):
                 data_s = data[data[self.randomIndex]%4 == i]
+                data_o = data_s[self._outbranches]
 
                 for model in self.train_variables.keys():
                     x_Events = data_s[self.train_variables[model]]
@@ -205,10 +209,10 @@ class ApplyXGBHandler(object):
                     scores_t = self.m_tsfs[model][i].transform(scores.reshape(-1,1)).reshape(-1)
                 
                     xgb_basename = self.models[model]
-                    data_s[xgb_basename] = scores
-                    data_s[xgb_basename+'_t'] = scores_t
+                    data_o[xgb_basename] = scores
+                    data_o[xgb_basename+'_t'] = scores_t
 
-                out_data = pd.concat([out_data, data_s], ignore_index=True, sort=False)
+                out_data = pd.concat([out_data, data_o], ignore_index=True, sort=False)
 
             out_data.to_root(output_path, key='test', mode='a', index=False)
 
