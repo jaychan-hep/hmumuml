@@ -64,7 +64,7 @@ class categorizer(object):
 
             z, u = calc_sig(nsig, nbkg, dsig, dbkg)
 
-            return [], z
+            return [bl], z
 
         elif nbin > 1:
 
