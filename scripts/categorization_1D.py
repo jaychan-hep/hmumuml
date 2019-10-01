@@ -91,7 +91,7 @@ def categorizing(region,sigs,bkgs,nscan, minN, transform, nbin, floatB, n_fold, 
     cgz = categorizer(h_sig, h_bkg)
     bmax, zmax = cgz.fit(1, nscan, nbin, minN=minN, floatB=floatB, earlystop=earlystop, pbar=True)
 
-    boundaries = bmax if floatB else ([1] + bmax)
+    boundaries = bmax
     boundaries_values = [(i-1.)/nscan for i in boundaries]
     print '========================================================================='
     print 'Fold number %d' %fold
