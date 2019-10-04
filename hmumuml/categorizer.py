@@ -1,4 +1,4 @@
-import ROOT
+from ROOT import *
 from math import sqrt, log, ceil
 from tqdm import tqdm
 
@@ -19,12 +19,13 @@ def calc_sig(sig, bkg,s_err,b_err):
 
   return significance, uncert
 
-def hist_integral(hist,i,j):
-    err = ROOT.Double()
-    if i>j:
+def hist_integral(hist,i,j,k=-999,l=-999):
+    err = Double()
+    if i>j or k>l:
         n=0
         err=0
-    else: n = hist.IntegralAndError(i,j,err)
+    elif k == -999 and l == -999: n = hist.IntegralAndError(i,j,err)
+    else: n = hist.IntegralAndError(i,j,k,l,err)
     return n, err
 
 def sum_hist_integral(integrals,xs=1):
@@ -92,3 +93,59 @@ class categorizer(object):
 
             return bmax, zmax
 
+def fit_BDT(hist, fitboundary, fitbin, function, fillbin, sf):
+
+    n_events = hist.Integral()
+
+    bdt = RooRealVar("bdt","bdt",fitboundary,1)
+
+    a = RooRealVar("a", "a", -100, 100)
+    b = RooRealVar("b", "b", -100, 100)
+    c = RooRealVar("c", "c", -100, 100)
+    d = RooRealVar("d", "d", -100, 100)
+    e = RooRealVar("e", "e", -100, 100)
+    f = RooRealVar("f", "f", -100, 100)
+
+    pdf = {}
+    pdf['power'] = RooGenericPdf("pdf","PDF for BDT distribution", "@0**@1", RooArgList(bdt, a)) #power
+
+    # EPoly Family
+    pdf['Exp'] = RooGenericPdf("pdf","PDF for BDT distribution", "exp(@1*@0)", RooArgList(bdt, a))
+    pdf['Epoly2'] = RooGenericPdf("pdf","PDF for BDT distribution", "exp(@1*@0+@2*@0**2)", RooArgList(bdt, a, b))
+    pdf['Epoly3'] = RooGenericPdf("pdf","PDF for BDT distribution", "exp(@1*@0+@2*@0**2+@3*@0**3)", RooArgList(bdt, a, b, c))
+    pdf['Epoly4'] = RooGenericPdf("pdf","PDF for BDT distribution", "exp(@1*@0+@2*@0**2+@3*@0**3+@4*@0**4)", RooArgList(bdt, a, b, c, d))
+    pdf['Epoly5'] = RooGenericPdf("pdf","PDF for BDT distribution", "exp(@1*@0+@2*@0**2+@3*@0**3+@4*@0**4+@5*@0**5)", RooArgList(bdt, a, b, c, d, e))
+    pdf['Epoly6'] = RooGenericPdf("pdf","PDF for BDT distribution", "exp(@1*@0+@2*@0**2+@3*@0**3+@4*@0**4+@5*@0**5+@6*@0**6)", RooArgList(bdt, a, b, c, d, e, f))
+
+    data = RooDataHist("dh", "dh", RooArgList(bdt), hist)
+    #data.Print("all")
+
+    pdf[function].fitTo(data, RooFit.Verbose(False), RooFit.PrintLevel(-1))
+
+    #lam.Print()
+    a.Print()
+    b.Print()
+    c.Print()
+    d.Print()
+    e.Print()
+    f.Print()
+
+    frame = bdt.frame()
+    data.plotOn(frame)
+    pdf[function].plotOn(frame)
+
+    #frame.Draw()
+
+    dof = {'power': 2, 'Exp': 2, 'Epoly2': 3, 'Epoly3': 4, 'Epoly4': 5, 'Epoly5': 6, 'Epoly6': 7}
+    reduced_chi_square = frame.chiSquare(dof[function])
+    probability = TMath.Prob(frame.chiSquare(dof[function]) * (fitbin - dof[function]), fitbin - dof[function])
+    print 'chi square:', reduced_chi_square
+    print 'probability: ', probability
+
+    #raw_input('Press enter to continue')
+
+    # fill the fitted pdf into a histogram
+    hfit = TH1F('hfit', 'hfit', fillbin, fitboundary, 1.)
+    pdf[function].fillHistogram(hfit, RooArgList(bdt), n_events*sf)
+
+    return hfit
