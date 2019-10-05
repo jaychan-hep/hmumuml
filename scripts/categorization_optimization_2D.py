@@ -46,7 +46,6 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
 
     h_sig=TH1F('h_sig','h_sig',nscanvbf,0,1)
     h_sig_raw=TH2F('h_sig_raw','h_sig_raw',nscanvbf,0,1,nscan,0,1)
-
     h_sig_raw.Sumw2()
     h_sig.Sumw2()
 
@@ -54,44 +53,21 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
     t_sig.Draw("bdt_score%s:bdt_score_VBF%s>>h_sig_raw"%('_t' if transform else '', '_t' if transform else ''),"weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
     t_sig.Draw("bdt_score_VBF%s>>h_sig"%('_t' if transform else ''),"weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1,n_fold,fold if n_fold != 1 else 1))
 
-
-    # prepare some settings for bkg histograms
-    fitboundary = 0.5
-    nbin_right = int(nscanvbf*(1-fitboundary))
-    nbin_left = int(nscanvbf*fitboundary)
-    fitbin = nbin_right  #100
-
     h_bkg_raw = TH2F('h_bkg_raw', 'h_bkg_raw', nscanvbf, 0., 1., nscan, 0., 1.)
-    h_bkg_right = TH1F('h_bkg_right', 'h_bkg_right', fitbin, fitboundary, 1.)
-    h_bkg_left = TH1F('h_bkg_left', 'h_bkg_left', nbin_left, 0., fitboundary)
+    h_bkg = TH1F('h_bkg', 'h_bkg', nscanvbf, 0., 1.)
     h_bkg_raw.Sumw2()
-    h_bkg_right.Sumw2()
-    h_bkg_left.Sumw2()
+    h_bkg.Sumw2()
 
     # filling bkg histograms
     t_bkg.Draw("bdt_score%s:bdt_score_VBF%s>>h_bkg_raw"%('_t' if transform else '','_t' if transform else ''),"weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
-    t_bkg.Draw("bdt_score_VBF%s>>h_bkg_right"%('_t' if transform else ''),"weight*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold,fold if n_fold != 1 else 1))
-    t_bkg.Draw("bdt_score_VBF%s>>h_bkg_left"%('_t' if transform else ''),"weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(bdt_score_VBF_t<%f&&bdt_score_VBF_t>=0&&(eventNumber%%%d!=%d)))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1,fitboundary, n_fold,fold if n_fold != 1 else 1))
-
-    sf = (n_fold/(n_fold-1.) if n_fold != 1 else 1)*0.2723
-
-    # fit a function to the bkg BDT distribution!
-    h_bkg_right = fit_BDT(h_bkg_right, fitboundary, fitbin, 'Epoly2', nbin_right, sf)
-    #h_bkg_right.Scale(sf) # uncomment this line (and comment out the line above) to use the original histogram instead of the fitted histogram
-
-
-    # merge the non-fitted histogram with the fitted histogram
-    h_bkg = TH1F('h_bkg','h_bkg',nscanvbf,0.,1.)
-    h_bkg.Sumw2()
-    h_bkg_list = TList()
-    h_bkg_list.Add(h_bkg_left)
-    h_bkg_list.Add(h_bkg_right)
-    h_bkg.Merge(h_bkg_list)
+    t_bkg.Draw("bdt_score_VBF%s>>h_bkg"%('_t' if transform else ''),"weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
 
     #================================================
     # categorization for VBF categories. Will scan all of the possibilities of the BDT boundaries and get the one that gives the largest significance
 
     cgz = categorizer(h_sig, h_bkg)
+    fitboundary = 0.5
+    cgz.smooth(int(fitboundary * nscanvbf + 1), nscanvbf)
     boundaries_VBF, svmax = cgz.fit(vb, nscanvbf, nvbf, minN=minN, earlystop=earlystop, pbar=True)
 
     boundaries_VBF_values = [(i-1.)/nscanvbf for i in boundaries_VBF]
@@ -104,41 +80,20 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
     #=================================================
     # categorization for general higgs categories
 
-    del h_sig
-    del h_bkg
-    del h_bkg_left
-    del h_bkg_right
+    h_sig.Delete()
+    #h_bkg.Delete()
 
     h_sig=TH1F('h_sig','h_sig',nscan,0,1)
     h_sig.Sumw2()
     t_sig.Draw("bdt_score%s>>h_sig"%('_t' if transform else ''),"weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d)&&(bdt_score_VBF%s<%f))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1,n_fold,fold if n_fold != 1 else 1, '_t' if transform else '', (vb-1.)/nscanvbf))
 
-    fitboundary = 0.5
-    nbin_right = int(nscan*(1-fitboundary))
-    nbin_left = int(nscan*fitboundary)
-    fitbin = nbin_right  #100
-
-    h_bkg_right = TH1F('h_bkg_right', 'h_bkg_right', fitbin, fitboundary, 1.)
-    h_bkg_left = TH1F('h_bkg_left', 'h_bkg_left', nbin_left, 0., fitboundary)
-    h_bkg_right.Sumw2()
-    h_bkg_left.Sumw2()
-    t_bkg.Draw("bdt_score%s>>h_bkg_right"%('_t' if transform else ''),"weight*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d)&&(bdt_score_VBF%s<%f&&bdt_score%s>=%f))"%(n_fold,fold if n_fold != 1 else 1, '_t' if transform else '', (vb-1.)/nscanvbf, '_t' if transform else '', fitboundary))
-    t_bkg.Draw("bdt_score%s>>h_bkg_left"%('_t' if transform else ''),"weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(bdt_score_t<%f&&bdt_score_t>=0)&&(eventNumber%%%d!=%d)&&(bdt_score_VBF%s<%f))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1,fitboundary, n_fold,fold if n_fold != 1 else 1, '_t' if transform else '', (vb-1.)/nscanvbf))
-
-
-    sf = (n_fold/(n_fold-1.) if n_fold != 1 else 1)*0.2723
-    #h_bkg_right = fit_BDT(h_bkg_right, fitboundary, fitbin, 'Epoly2', nbin_right, sf)
-    h_bkg_right.Scale(sf)
-
-    h_bkg = TH1F('h_bkg','h_bkg',nscan,0.,1.)
+    h_bkg = TH1F('h_bkg', 'h_bkg', nscan, 0., 1.)
     h_bkg.Sumw2()
-
-    h_bkg_list = TList()
-    h_bkg_list.Add(h_bkg_left)
-    h_bkg_list.Add(h_bkg_right)
-    h_bkg.Merge(h_bkg_list)
+    t_bkg.Draw("bdt_score%s>>h_bkg"%('_t' if transform else ''), "weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d)&&(bdt_score_VBF%s<%f))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1, '_t' if transform else '', (vb-1.)/nscanvbf))
 
     cgz = categorizer(h_sig, h_bkg)
+    fitboundary = 0.5
+    cgz.smooth(int(fitboundary * nscan + 1), nscan)
     boundaries, smax = cgz.fit(1, nscan, nbin, minN=minN, floatB=floatB, earlystop=earlystop, pbar=True)
 
     boundaries_values = [(i-1.)/nscan for i in boundaries]
