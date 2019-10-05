@@ -45,12 +45,62 @@ def sum_z(zs):
     sumu=sqrt(sumu)/sumz if sumz != 0 else 0
     return sumz, sumu
 
+def copy_hist(hname, h0, bl, br):
+
+    nbin = br - bl + 1
+    l_edge = h0.GetBinLowEdge(bl)
+    r_edge = l_edge + h0.GetBinWidth(bl) * nbin
+    h1 = TH1F(hname, hname, nbin, l_edge, r_edge)
+
+    for i, j in enumerate(range(bl, br+1)):
+
+        y = h0.GetBinContent(j)
+        err = h0.GetBinError(j)
+
+        h1.SetBinContent(i+1, y)
+        h1.SetBinError(i+1, err)
+        
+    return h1
+
 class categorizer(object):
 
     def __init__(self, h_sig, h_bkg):
 
         self.h_sig = h_sig
         self.h_bkg = h_bkg
+
+    def smooth(self, bl, br, SorB='B', function='Epoly2'):
+
+        if SorB == 'S': hist = self.h_sig
+        elif SorB == 'B': hist = self.h_bkg
+
+        nbin = hist.GetSize() - 2
+        l_edge = hist.GetBinLowEdge(1)
+        r_edge = l_edge + hist.GetBinWidth(1) * nbin
+
+        h_merge_list = TList()
+
+        if bl != 1:
+            h_left = copy_hist('h_left', hist, 1, bl-1)
+            h_merge_list.Add(h_left)
+
+        hist_to_smooth = copy_hist('hist_to_smooth', hist, bl, br)
+        smoothed_hist = fit_BDT('smoothed_hist', hist_to_smooth, function)
+        h_merge_list.Add(smoothed_hist)
+
+        if br != nbin:
+            h_right =copy_hist('h_right', hist, br+1, nbin)
+            h_merge_list.Add(h_right)
+
+        if SorB == 'S':
+            self.h_sig.Delete()
+            self.h_sig = TH1F('h_sig', 'h_sig', nbin, l_edge, r_edge)
+            self.h_sig.Merge(h_merge_list)
+
+        elif SorB == 'B':
+            self.h_bkg.Delete()
+            self.h_bkg = TH1F('h_bkg', 'h_bkg', nbin, l_edge, r_edge)
+            self.h_bkg.Merge(h_merge_list)
 
     def fit(self, bl, br, nbin, minN=5, floatB=False, earlystop=-1, pbar=False):
 
@@ -74,7 +124,7 @@ class categorizer(object):
             N1 = nbin - N2
 
             bmax, zmax, stop = -1, -1, 0
-
+ 
             for b in (range(bl, br+1) if not pbar else tqdm(range(bl, br+1))):
 
                 b1, z1 = self.fit(bl, b-1, N1, minN=minN, floatB=floatB, earlystop=earlystop)
@@ -93,11 +143,15 @@ class categorizer(object):
 
             return bmax, zmax
 
-def fit_BDT(hist, fitboundary, fitbin, function, fillbin, sf):
+def fit_BDT(hname, hist, function='Epoly2'):
 
     n_events = hist.Integral()
 
-    bdt = RooRealVar("bdt","bdt",fitboundary,1)
+    nbin = hist.GetSize() - 2
+    l_edge = hist.GetBinLowEdge(1)
+    r_edge = l_edge + hist.GetBinWidth(1) * nbin
+
+    bdt = RooRealVar("bdt", "bdt", l_edge, r_edge)
 
     a = RooRealVar("a", "a", -100, 100)
     b = RooRealVar("b", "b", -100, 100)
@@ -138,14 +192,14 @@ def fit_BDT(hist, fitboundary, fitbin, function, fillbin, sf):
 
     dof = {'power': 2, 'Exp': 2, 'Epoly2': 3, 'Epoly3': 4, 'Epoly4': 5, 'Epoly5': 6, 'Epoly6': 7}
     reduced_chi_square = frame.chiSquare(dof[function])
-    probability = TMath.Prob(frame.chiSquare(dof[function]) * (fitbin - dof[function]), fitbin - dof[function])
+    probability = TMath.Prob(frame.chiSquare(dof[function]) * (nbin - dof[function]), nbin - dof[function])
     print 'chi square:', reduced_chi_square
     print 'probability: ', probability
 
     #raw_input('Press enter to continue')
 
     # fill the fitted pdf into a histogram
-    hfit = TH1F('hfit', 'hfit', fillbin, fitboundary, 1.)
-    pdf[function].fillHistogram(hfit, RooArgList(bdt), n_events*sf)
+    hfit = TH1F(hname, hname, nbin, l_edge, r_edge)
+    pdf[function].fillHistogram(hfit, RooArgList(bdt), n_events)
 
     return hfit
