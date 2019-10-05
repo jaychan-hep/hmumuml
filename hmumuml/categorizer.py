@@ -93,13 +93,15 @@ class categorizer(object):
             h_merge_list.Add(h_right)
 
         if SorB == 'S':
+            hname = self.h_sig.GetName()
             self.h_sig.Delete()
-            self.h_sig = TH1F('h_sig', 'h_sig', nbin, l_edge, r_edge)
+            self.h_sig = TH1F(hname, hname, nbin, l_edge, r_edge)
             self.h_sig.Merge(h_merge_list)
 
         elif SorB == 'B':
+            hname = self.h_bkg.GetName()
             self.h_bkg.Delete()
-            self.h_bkg = TH1F('h_bkg', 'h_bkg', nbin, l_edge, r_edge)
+            self.h_bkg = TH1F(hname, hname, nbin, l_edge, r_edge)
             self.h_bkg.Merge(h_merge_list)
 
     def fit(self, bl, br, nbin, minN=5, floatB=False, earlystop=-1, pbar=False):
