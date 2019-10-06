@@ -104,7 +104,7 @@ class categorizer(object):
             self.h_bkg = TH1F(hname, hname, nbin, l_edge, r_edge)
             self.h_bkg.Merge(h_merge_list)
 
-    def fit(self, bl, br, nbin, minN=5, floatB=False, earlystop=-1, pbar=False):
+    def scan_bounds(self, bl, br, nbin, minN=5, floatB=False, earlystop=-1, pbar=False):
 
         if nbin == 1:
 
@@ -129,9 +129,9 @@ class categorizer(object):
  
             for b in (range(bl, br+1) if not pbar else tqdm(range(bl, br+1))):
 
-                b1, z1 = self.fit(bl, b-1, N1, minN=minN, floatB=floatB, earlystop=earlystop)
+                b1, z1 = self.scan_bounds(bl, b-1, N1, minN=minN, floatB=floatB, earlystop=earlystop)
                 if b1 == -1: continue
-                b2, z2 = self.fit(b, br, N2, minN=minN, earlystop=earlystop)
+                b2, z2 = self.scan_bounds(b, br, N2, minN=minN, earlystop=earlystop)
                 if b2 == -1: break
 
                 z = sqrt(z1**2 + z2**2)
