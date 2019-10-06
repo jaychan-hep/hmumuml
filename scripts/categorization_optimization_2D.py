@@ -66,6 +66,8 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
     # categorization for VBF categories. Will scan all of the possibilities of the BDT boundaries and get the one that gives the largest significance
 
     cgz = categorizer(h_sig, h_bkg)
+    h_sig.Delete()
+    h_bkg.Delete()
     fitboundary = 0.5
     cgz.smooth(int(fitboundary * nscanvbf + 1), nscanvbf)
     boundaries_VBF, svmax = cgz.fit(vb, nscanvbf, nvbf, minN=minN, earlystop=earlystop, pbar=True)
@@ -79,9 +81,6 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
 
     #=================================================
     # categorization for general higgs categories
-
-    h_sig.Delete()
-    #h_bkg.Delete()
 
     h_sig=TH1F('h_sig','h_sig',nscan,0,1)
     h_sig.Sumw2()
