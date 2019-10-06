@@ -89,7 +89,7 @@ def categorizing(region,sigs,bkgs,nscan, minN, transform, nbin, floatB, n_fold, 
 
     print 'INFO: scanning all of the possibilities...'
     cgz = categorizer(h_sig, h_bkg)
-    #cgz.smooth(60, nscan)  #uncomment this line to fit a function to the BDT distribution. Usage: categorizer.smooth(left_bin_to_fit, right_bin_to_fit, SorB='S' (for signal) or 'B' (for bkg), function='Epoly2')
+    #cgz.smooth(60, nscan)  #uncomment this line to fit a function to the BDT distribution. Usage: categorizer.smooth(left_bin_to_fit, right_bin_to_fit, SorB='S' (for signal) or 'B' (for bkg), function='Epoly2', printMessage=False (switch to "True" to print message))
     bmax, zmax = cgz.fit(1, nscan, nbin, minN=minN, floatB=floatB, earlystop=earlystop, pbar=True)
 
     boundaries = bmax
