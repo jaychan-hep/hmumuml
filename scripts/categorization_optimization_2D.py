@@ -68,7 +68,7 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
     cgz = categorizer(h_sig, h_bkg)
     fitboundary = 0.5
     cgz.smooth(int(fitboundary * nscanvbf + 1), nscanvbf)
-    boundaries_VBF, svmax = cgz.scan_bounds(vb, nscanvbf, nvbf, minN=minN, earlystop=earlystop, pbar=True)
+    boundaries_VBF, svmax = cgz.fit(vb, nscanvbf, nvbf, minN=minN, earlystop=earlystop, pbar=True)
 
     boundaries_VBF_values = [(i-1.)/nscanvbf for i in boundaries_VBF]
 
@@ -94,7 +94,7 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, vb, nv
     cgz = categorizer(h_sig, h_bkg)
     fitboundary = 0.5
     cgz.smooth(int(fitboundary * nscan + 1), nscan)
-    boundaries, smax = cgz.scan_bounds(1, nscan, nbin, minN=minN, floatB=floatB, earlystop=earlystop, pbar=True)
+    boundaries, smax = cgz.fit(1, nscan, nbin, minN=minN, floatB=floatB, earlystop=earlystop, pbar=True)
 
     boundaries_values = [(i-1.)/nscan for i in boundaries]
     print 'The maximal ggF category significance:  %f' %(smax)
