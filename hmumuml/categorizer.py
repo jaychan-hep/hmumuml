@@ -1,6 +1,8 @@
 from ROOT import *
 from math import sqrt, log, ceil
 from tqdm import tqdm
+import numpy as np
+from pdb import set_trace
 
 def calc_sig(sig, bkg,s_err,b_err):
 
@@ -62,47 +64,139 @@ def copy_hist(hname, h0, bl, br):
         
     return h1
 
+class pyTH1(object):
+    """Customized TH1 class"""
+
+    def __init__(self, hist):
+
+        assert isinstance(hist, TH1), 'hist==ROOT.TH1F'
+
+        self.BinContent = np.array([])
+        self.BinError = np.array([])
+        self.BinLowEdge = np.array([])
+        self.BinWidth = np.array([])
+
+        for i in range(1, hist.GetSize()-1):
+
+            self.BinContent = np.append(self.BinContent, hist.GetBinContent(i))
+            self.BinError = np.append(self.BinError, hist.GetBinError(i))
+            self.BinLowEdge = np.append(self.BinLowEdge, hist.GetBinLowEdge(i))
+            self.BinWidth = np.append(self.BinWidth, hist.GetBinWidth(i))
+
+    def GetSize(self):
+
+        return len(self.BinContent)
+
+    def GetLowEdge(self):
+
+        return self.BinLowEdge[0]
+
+    def GetHighEdge(self):
+
+        return self.BinLowEdge[-1] + self.BinWidth[-1]
+
+    def GetBinContent(self, i=0):
+
+        if i==0: return self.BinContent
+        return self.BinContent[i-1]
+
+    def GetBinError(self, i=0):
+
+        if i==0: return self.BinError
+        return self.BinError[i-1]
+
+    def GetBinLowEdge(self, i=0):
+
+        if i==0: return self.BinLowEdge
+        return self.BinLowEdge[i-1]
+
+    def GetBinWidth(self, i=0):
+
+        if i==0: return self.BinWidth
+        return self.BinWidth[i-1]
+
+    def Integral(self, i=0, j=0):
+
+        if i==0 and j==0:
+            return self.BinContent.sum()
+
+        return self.BinContent[i-1:j].sum()
+
+    def IntegralAndError(self, i=0, j=0):
+
+        if i==0 and j==0:
+            return self.BinContent.sum(), sqrt((self.BinError**2).sum())
+
+        return self.BinContent[i-1:j].sum(), sqrt((self.BinError[i-1:j]**2).sum())
+
+    def to_TH1F(self, name, bl=-1, br=-1):
+
+        if bl == -1 and br == -1:
+            bl = 1
+            br = self.GetSize()
+
+        hist = TH1F(name, name, br - bl + 1, self.GetBinLowEdge(bl), self.GetBinLowEdge(br) + self.GetBinWidth(br))
+
+        for i, j in enumerate(range(bl, br+1)):
+
+            y = self.GetBinContent(j)
+            err = self.GetBinError(j)
+
+            hist.SetBinContent(i+1, y)
+            hist.SetBinError(i+1, err)
+
+        return hist
+
+
 class categorizer(object):
 
     def __init__(self, h_sig, h_bkg):
 
-        self.h_sig = h_sig
-        self.h_bkg = h_bkg
+        assert isinstance(h_sig, TH1), 'h_sig==ROOT.TH1'
+        assert isinstance(h_bkg, TH1), 'h_bkg==ROOT.TH1'
+        assert h_sig.GetSize() == h_bkg.GetSize(), 'h_sig and h_bkg have different sizes'
+        assert h_sig.GetBinLowEdge(1) == h_bkg.GetBinLowEdge(1), 'h_sig and h_bkg have different edges'
+        assert h_sig.GetBinWidth(1) == h_bkg.GetBinWidth(1), 'h_sig and h_bkg have different bin widths'
+
+        self.h_sig = pyTH1(h_sig)
+        self.h_bkg = pyTH1(h_bkg)
 
     def smooth(self, bl, br, SorB='B', function='Epoly2'):
 
         if SorB == 'S': hist = self.h_sig
         elif SorB == 'B': hist = self.h_bkg
 
-        nbin = hist.GetSize() - 2
-        l_edge = hist.GetBinLowEdge(1)
-        r_edge = l_edge + hist.GetBinWidth(1) * nbin
+        nbin = hist.GetSize()
+        l_edge = hist.GetLowEdge()
+        r_edge = hist.GetHighEdge()
 
         h_merge_list = TList()
 
         if bl != 1:
-            h_left = copy_hist('h_left', hist, 1, bl-1)
+            h_left = hist.to_TH1F('h_left', 1, bl-1)
             h_merge_list.Add(h_left)
 
-        hist_to_smooth = copy_hist('hist_to_smooth', hist, bl, br)
+        hist_to_smooth = hist.to_TH1F('hist_to_smooth', bl, br)
         smoothed_hist = fit_BDT('smoothed_hist', hist_to_smooth, function)
         h_merge_list.Add(smoothed_hist)
 
         if br != nbin:
-            h_right =copy_hist('h_right', hist, br+1, nbin)
+            h_right = hist.to_TH1F('h_right', br+1, nbin)
             h_merge_list.Add(h_right)
 
-        if SorB == 'S':
-            hname = self.h_sig.GetName()
-            self.h_sig.Delete()
-            self.h_sig = TH1F(hname, hname, nbin, l_edge, r_edge)
-            self.h_sig.Merge(h_merge_list)
+        htemp = TH1F('htemp', 'htemp', nbin, l_edge, r_edge)
+        htemp.Merge(h_merge_list)
 
+        if SorB == 'S':
+            self.h_sig = pyTH1(htemp)
         elif SorB == 'B':
-            hname = self.h_bkg.GetName()
-            self.h_bkg.Delete()
-            self.h_bkg = TH1F(hname, hname, nbin, l_edge, r_edge)
-            self.h_bkg.Merge(h_merge_list)
+            self.h_bkg = pyTH1(htemp)
+
+        if bl != 1: h_left.Delete()
+        hist_to_smooth.Delete()
+        smoothed_hist.Delete()
+        if br != nbin: h_right.Delete()
+        htemp.Delete()
 
     def fit(self, bl, br, nbin, minN=5, floatB=False, earlystop=-1, pbar=False):
 
@@ -110,8 +204,8 @@ class categorizer(object):
 
             if floatB: return [], 0
 
-            nsig, dsig = hist_integral(self.h_sig, bl, br)
-            nbkg, dbkg = hist_integral(self.h_bkg, bl, br)
+            nsig, dsig = self.h_sig.IntegralAndError(bl, br)
+            nbkg, dbkg = self.h_bkg.IntegralAndError(bl, br)
 
             if nbkg < minN: return -1, -1
 
@@ -145,7 +239,9 @@ class categorizer(object):
 
             return bmax, zmax
 
-def fit_BDT(hname, hist, function='Epoly2'):
+def fit_BDT(hname, hist, function='Epoly2', printMessage=False):
+
+    if not printMessage: RooMsgService.instance().setGlobalKillBelow(RooFit.ERROR)  #WARNING
 
     n_events = hist.Integral()
 
@@ -178,25 +274,26 @@ def fit_BDT(hname, hist, function='Epoly2'):
 
     pdf[function].fitTo(data, RooFit.Verbose(False), RooFit.PrintLevel(-1))
 
-    #lam.Print()
-    a.Print()
-    b.Print()
-    c.Print()
-    d.Print()
-    e.Print()
-    f.Print()
-
-    frame = bdt.frame()
-    data.plotOn(frame)
-    pdf[function].plotOn(frame)
-
-    #frame.Draw()
-
-    dof = {'power': 2, 'Exp': 2, 'Epoly2': 3, 'Epoly3': 4, 'Epoly4': 5, 'Epoly5': 6, 'Epoly6': 7}
-    reduced_chi_square = frame.chiSquare(dof[function])
-    probability = TMath.Prob(frame.chiSquare(dof[function]) * (nbin - dof[function]), nbin - dof[function])
-    print 'chi square:', reduced_chi_square
-    print 'probability: ', probability
+    if printMessage:
+        a.Print()
+        b.Print()
+        c.Print()
+        d.Print()
+        e.Print()
+        f.Print()
+    
+        frame = bdt.frame()
+        data.plotOn(frame)
+        pdf[function].plotOn(frame)
+    
+        frame.Draw()
+        #frame.Print('test.pdf')
+    
+        dof = {'power': 2, 'Exp': 2, 'Epoly2': 3, 'Epoly3': 4, 'Epoly4': 5, 'Epoly5': 6, 'Epoly6': 7}
+        reduced_chi_square = frame.chiSquare(dof[function])
+        probability = TMath.Prob(frame.chiSquare(dof[function]) * (nbin - dof[function]), nbin - dof[function])
+        print 'chi square:', reduced_chi_square
+        print 'probability: ', probability
 
     #raw_input('Press enter to continue')
 
