@@ -31,9 +31,4 @@ python scripts/categorization_1D.py -r one_jet -b 3
 ##############################################
 #  Optimizing the BDT boundaries for two-jet
 ##############################################
-python scripts/categorization_1D.py -r two_jet -b 3
-python scripts/submit_categorization_optimization_2D.py
-
-#################################################################################################################################
-# After all the jobs are done, one needs to do `python scripts/getSignificance_2D.py -r two_jet -v 3 -b 3` to get the result of two-jet
-################################################################################################################################
+python scripts/categorization_2D.py -r two_jet -b 3 -v 3
