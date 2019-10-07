@@ -1,5 +1,5 @@
 from ROOT import *
-from math import sqrt, log, ceil
+from numpy import sqrt, log, ceil, log2
 from tqdm import tqdm
 import numpy as np
 from pdb import set_trace
@@ -8,11 +8,11 @@ def calc_sig(sig, bkg,s_err,b_err):
 
   ntot = sig + bkg
 
-  if(sig <= 0): return 0, 0
-  if(bkg <= 0): return 0, 0
+  #if(sig <= 0): return 0, 0
+  #if(bkg <= 0): return 0, 0
 
   #Counting experiment
-  significance = sqrt(2*((ntot*log(ntot/bkg)) - sig))
+  significance = sqrt(2*((ntot * log(ntot/bkg)) - sig))
   #significance = sig / sqrt(bkg)
 
   #error on significance
@@ -215,7 +215,7 @@ class categorizer(object):
 
         elif nbin > 1:
 
-            L = int(ceil(log(nbin, 2)))
+            L = int(ceil(log2(nbin)))
             N2 = 2**(L - 1)
             N1 = nbin - N2
 
