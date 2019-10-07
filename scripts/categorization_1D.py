@@ -16,10 +16,11 @@ from argparse import ArgumentParser
 import numpy as np
 import pandas as pd
 from root_pandas import *
-#from math import sqrt, log, ceil
 import json
 from categorizer import *
 from pdb import set_trace
+
+pd.options.mode.chained_assignment = None
 
 def getArgs():
     """Get arguments from command line."""
@@ -43,40 +44,29 @@ def gettingsig(region, boundaries, transform):
                           'bkg': [0.]*len(boundaries[0]),
                           'bkg_err': [0.]*len(boundaries[0])})
 
-    for data in tqdm(read_root('outputs/%s/sig.root' % region, key='test', columns=['bdt_score%s' % ('_t' if transform else ''), 'm_mumu', 'weight', 'eventNumber'], chunksize=500000), desc='Loading signal'):
+    for category in ['sig', 'bkg']:
 
-        data = data[(data.m_mumu >= 120) & (data.m_mumu <= 130)]
-
-        for i in range(len(boundaries)):
-
-            data_s = data[data.eventNumber % len(boundaries) == i]
-
-            for j in range(len(boundaries[i])):
-
-                data_ss = data_s[data_s['bdt_score%s' % ('_t' if transform else '')] >= boundaries[i][j]]
-                if j != len(boundaries[i]) - 1: data_ss = data_ss[data_ss['bdt_score%s' % ('_t' if transform else '')] < boundaries[i][j+1]]
-
-                w = data_ss.weight
-                yields.sig[j] += w.sum()
-                yields.sig_err[j] = np.sqrt(yields.sig_err[j]**2 + (w**2).sum())
-
-
-    for data in tqdm(read_root('outputs/%s/bkg.root' % region, key='test', columns=['bdt_score%s' % ('_t' if transform else ''), 'm_mumu', 'weight', 'eventNumber'], chunksize=500000), desc='Loading background'):
-
-        data = data[(data.m_mumu >= 110) & (data.m_mumu <= 180) & ((data.m_mumu < 120) | (data.m_mumu > 130))]
-
-        for i in range(len(boundaries)):
-
-            data_s = data[data.eventNumber % len(boundaries) == i]
-
-            for j in range(len(boundaries[i])):
-
-                data_ss = data_s[data_s['bdt_score%s' % ('_t' if transform else '')] >= boundaries[i][j]]
-                if j != len(boundaries[i]) - 1: data_ss = data_ss[data_ss['bdt_score%s' % ('_t' if transform else '')] < boundaries[i][j+1]]
-
-                w = data_ss.weight * 0.2723
-                yields.bkg[j] += w.sum()
-                yields.bkg_err[j] = np.sqrt(yields.bkg_err[j]**2 + (w**2).sum())
+        for data in tqdm(read_root('outputs/%s/%s.root' % (region, category), key='test', columns=['bdt_score%s' % ('_t' if transform else ''), 'm_mumu', 'weight', 'eventNumber'], chunksize=500000), desc='Loading %s' % category):
+    
+            if category == 'sig':
+                data = data[(data.m_mumu >= 120) & (data.m_mumu <= 130)]
+                data['w'] = data.weight
+    
+            elif category == 'bkg':
+                data = data[(data.m_mumu >= 110) & (data.m_mumu <= 180) & ((data.m_mumu < 120) | (data.m_mumu > 130))]
+                data['w'] = data.weight * 0.2723
+    
+            for i in range(len(boundaries)):
+    
+                data_s = data[data.eventNumber % len(boundaries) == i]
+    
+                for j in range(len(boundaries[i])):
+    
+                    data_ss = data_s[data_s['bdt_score%s' % ('_t' if transform else '')] >= boundaries[i][j]]
+                    if j != len(boundaries[i]) - 1: data_ss = data_ss[data_ss['bdt_score%s' % ('_t' if transform else '')] < boundaries[i][j+1]]
+    
+                    yields[category][j] += data_ss.w.sum()
+                    yields[category+'_err'][j] = np.sqrt(yields[category+'_err'][j]**2 + (data_ss.w**2).sum())
 
     zs = calc_sig(yields.sig, yields.bkg, yields.sig_err, yields.bkg_err)
     yields['z'] = zs[0]
@@ -143,8 +133,6 @@ def main():
     region = args.region
 
     nscan=args.nscan
-
-    CrossSections={}
 
     if not args.skip:
         siglist=''
