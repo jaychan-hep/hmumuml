@@ -13,9 +13,13 @@
 import os
 import ROOT
 from argparse import ArgumentParser
+import numpy as np
+import pandas as pd
+from root_pandas import *
 #from math import sqrt, log, ceil
 import json
 from categorizer import *
+from pdb import set_trace
 
 def getArgs():
     """Get arguments from command line."""
@@ -32,43 +36,60 @@ def getArgs():
     parser.add_argument('-e', '--earlystop', type = int, default = -1, help='early stopping rounds.')
     return  parser.parse_args()
 
-def gettingsig(region,sigs,bkgs, boundaries, nscan, nbin, n_fold, transform):
+def gettingsig(region, boundaries, transform):
 
-    f_bkg = ROOT.TFile('outputs/%s/bkg.root' % (region))
-    t_bkg = f_bkg.Get('test')
+    yields = pd.DataFrame({'sig': [0.]*len(boundaries[0]),
+                          'sig_err': [0.]*len(boundaries[0]),
+                          'bkg': [0.]*len(boundaries[0]),
+                          'bkg_err': [0.]*len(boundaries[0])})
 
-    h_bkg = []
-    for fold in range(n_fold):
-        h_bkg.append(ROOT.TH1F('h_bkg_%d'%(fold),'h_bkg_%d'%(fold),nscan,0.,1.))
-        h_bkg[fold].Sumw2()
-        t_bkg.Draw("bdt_score%s>>h_bkg_%d"%('_t' if transform else '', fold),"weight*1*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&eventNumber%%%d==%d)"%(n_fold,fold))
+    for data in tqdm(read_root('outputs/%s/sig.root' % region, key='test', columns=['bdt_score%s' % ('_t' if transform else ''), 'm_mumu', 'weight', 'eventNumber'], chunksize=500000), desc='Loading signal'):
 
-    nbkg = []
-    for i in range(len(boundaries[0])):
-        nbkg.append(sum_hist_integral([hist_integral(h_bkg[fold], boundaries[fold][i], boundaries[fold][i+1]-1 if i != len(boundaries[0])-1 else nscan+1) for fold in range(n_fold)]))    
+        data = data[(data.m_mumu >= 120) & (data.m_mumu <= 130)]
 
-    f_sig = ROOT.TFile('outputs/%s/sig.root' % (region))
-    t_sig = f_sig.Get('test')
+        for i in range(len(boundaries)):
 
-    h_sig = []
-    for fold in range(n_fold):
-        h_sig.append(ROOT.TH1F('h_sig_%d'%(fold),'h_sig_%d'%(fold),nscan,0.,1.))
-        h_sig[fold].Sumw2()
-        t_sig.Draw("bdt_score%s>>h_sig_%d"%('_t' if transform else '', fold),"weight*1*(m_mumu>=120&&m_mumu<=130&&eventNumber%%%d==%d)"%(n_fold,fold))
+            data_s = data[data.eventNumber % len(boundaries) == i]
 
-    nsig = []
-    for i in range(len(boundaries[0])):
-        nsig.append(sum_hist_integral([hist_integral(h_sig[fold], boundaries[fold][i], boundaries[fold][i+1]-1 if i != len(boundaries[0])-1 else nscan+1) for fold in range(n_fold)])
-)
-       
-    zs = [ calc_sig(nsig[i][0], nbkg[i][0], nsig[i][1], nbkg[i][1]) for i in range(len(nsig))]
-    s, u = sum_z(zs)
+            for j in range(len(boundaries[i])):
 
-    print 'Signal yield: ', nsig
-    print 'BKG yield: ', nbkg
-    print 'Significance:  %f +- %f'%(s,abs(u))
+                data_ss = data_s[data_s['bdt_score%s' % ('_t' if transform else '')] >= boundaries[i][j]]
+                if j != len(boundaries[i]) - 1: data_ss = data_ss[data_ss['bdt_score%s' % ('_t' if transform else '')] < boundaries[i][j+1]]
 
-    return s, abs(u)
+                w = data_ss.weight
+                yields.sig[j] += w.sum()
+                yields.sig_err[j] = np.sqrt(yields.sig_err[j]**2 + (w**2).sum())
+
+
+    for data in tqdm(read_root('outputs/%s/bkg.root' % region, key='test', columns=['bdt_score%s' % ('_t' if transform else ''), 'm_mumu', 'weight', 'eventNumber'], chunksize=500000), desc='Loading background'):
+
+        data = data[(data.m_mumu >= 110) & (data.m_mumu <= 180) & ((data.m_mumu < 120) | (data.m_mumu > 130))]
+
+        for i in range(len(boundaries)):
+
+            data_s = data[data.eventNumber % len(boundaries) == i]
+
+            for j in range(len(boundaries[i])):
+
+                data_ss = data_s[data_s['bdt_score%s' % ('_t' if transform else '')] >= boundaries[i][j]]
+                if j != len(boundaries[i]) - 1: data_ss = data_ss[data_ss['bdt_score%s' % ('_t' if transform else '')] < boundaries[i][j+1]]
+
+                w = data_ss.weight * 0.2723
+                yields.bkg[j] += w.sum()
+                yields.bkg_err[j] = np.sqrt(yields.bkg_err[j]**2 + (w**2).sum())
+
+    zs = calc_sig(yields.sig, yields.bkg, yields.sig_err, yields.bkg_err)
+    yields['z'] = zs[0]
+    yields['u'] = zs[1]
+
+    print yields
+
+    z = np.sqrt((yields['z']**2).sum())
+    u = np.sqrt((yields['z']**2 * yields['u']**2).sum())/z
+
+    print 'Significance:  %f +/- %f' % (z, abs(u))
+
+    return z, abs(u)
 
 def categorizing(region,sigs,bkgs,nscan, minN, transform, nbin, floatB, n_fold, fold, earlystop):
 
@@ -152,7 +173,7 @@ def main():
     smax = sum(smaxs)/n_fold
     print 'Averaged significance: ', smax
 
-    s, u = gettingsig(region,sigs,bkgs, boundaries, nscan, args.nbin, n_fold, args.transform)
+    s, u = gettingsig(region, boundaries_values, args.transform)
 
     outs={}
     outs['boundaries'] = boundaries
