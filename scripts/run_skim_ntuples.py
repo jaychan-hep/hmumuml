@@ -32,11 +32,18 @@ def arrange_cmd(channel,category,inputdir, skip):
             t0 = f0.Get('DiMuonNtuple')
             f1 = TFile('skimmed_ntuples/%s/%s' % (category, filename))
             t1 = f1.Get('inclusive')
-            if t0.GetEntries("FinalSelection && Muons_Minv_MuMu_Fsr >= 110 && SampleOverlapWeight && EventWeight_MCCleaning_5") == t1.GetEntries(): 
-                continue
-            else:
-                print "Events after desired selections don't match!! Please check!! Removing the skimmed file..."
-                #os.remove('skimmed_ntuples/%s/%s' % (category, filename))
+            t10 = f1.Get('zero_jet')
+            t11 = f1.Get('one_jet')
+            t12 = f1.Get('two_jet')
+
+            try:
+                if (t0.GetEntries("FinalSelection && Muons_Minv_MuMu_Fsr >= 110 && SampleOverlapWeight && EventWeight_MCCleaning_5") == t1.GetEntries()) and (t1.GetEntries() == t10.GetEntries() + t11.GetEntries() + t12.GetEntries()):
+                        continue
+                else:
+                    print "Events after desired selections don't match!! Please check!! Removing the skimmed file..."
+                    #os.remove('skimmed_ntuples/%s/%s' % (category, filename))
+            except Exception as e:
+                print e
 
         else:
             print 'Missing %s!!' % filename
