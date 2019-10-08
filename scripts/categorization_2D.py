@@ -110,25 +110,23 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, nvbf, 
     t_bkg = f_bkg.Get('test')
 
     h_sig_raw=TH2F('h_sig_raw','h_sig_raw',nscanvbf,0,1,nscan,0,1)
-    h_sig_raw.Sumw2()
     h_sig=TH1F('h_sig','h_sig',nscanvbf,0,1)
-    h_sig.Sumw2()
 
     # filling signal histograms
     t_sig.Draw("bdt_score%s:bdt_score_VBF%s>>h_sig_raw"%('_t' if transform else '', '_t' if transform else ''),"weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
     t_sig.Draw("bdt_score_VBF%s>>h_sig"%('_t' if transform else ''),"weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1,n_fold,fold if n_fold != 1 else 1))
 
     h_bkg_raw = TH2F('h_bkg_raw', 'h_bkg_raw', nscanvbf, 0., 1., nscan, 0., 1.)
-    h_bkg_raw.Sumw2()
     h_bkg = TH1F('h_bkg', 'h_bkg', nscanvbf, 0., 1.)
-    h_bkg.Sumw2()
 
     # filling bkg histograms
     t_bkg.Draw("bdt_score%s:bdt_score_VBF%s>>h_bkg_raw"%('_t' if transform else '','_t' if transform else ''),"weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
     t_bkg.Draw("bdt_score_VBF%s>>h_bkg"%('_t' if transform else ''),"weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
 
-    cgz = categorizer(h_sig, h_bkg)
     fitboundary = 0.5
+    fitboundary_g = 0.5
+
+    cgz = categorizer(h_sig, h_bkg)
     cgz.smooth(int(fitboundary * nscanvbf + 1), nscanvbf)
 
     zmax, boundaries_VBF, boundaries = 0, -1, -1
@@ -137,18 +135,17 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, nvbf, 
         boundaries_VBF, zv = cgz.fit(vb, nscanvbf, nvbf, minN=minN, earlystop=earlystop)
     
         h_sig_g = TH1F('h_sig_g','h_sig_g',nscan,0,1)
-        h_sig_g.Sumw2()
         t_sig.Draw("bdt_score%s>>h_sig_g"%('_t' if transform else ''),"weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d)&&(bdt_score_VBF%s<%f))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1,n_fold,fold if n_fold != 1 else 1, '_t' if transform else '', (vb-1.)/nscanvbf))
     
         h_bkg_g = TH1F('h_bkg_g', 'h_bkg_g', nscan, 0., 1.)
-        h_bkg_g.Sumw2()
         t_bkg.Draw("bdt_score%s>>h_bkg_g"%('_t' if transform else ''), "weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d)&&(bdt_score_VBF%s<%f))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1, '_t' if transform else '', (vb-1.)/nscanvbf))
     
         cgz_g = categorizer(h_sig_g, h_bkg_g)
+
         h_sig_g.Delete()
         h_bkg_g.Delete()
-        fitboundary = 0.5
-        cgz_g.smooth(int(fitboundary * nscan + 1), nscan)
+
+        cgz_g.smooth(int(fitboundary_g * nscan + 1), nscan)
         boundaries, zg = cgz_g.fit(1, nscan, nbin, minN=minN, floatB=floatB, earlystop=earlystop)
     
         z = sqrt(zv**2 + zg**2)
@@ -193,6 +190,7 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, nvbf, 
 def main():
 
     gROOT.SetBatch(True)
+    TH1.SetDefaultSumw2(1)
 
     args=getArgs()
 
