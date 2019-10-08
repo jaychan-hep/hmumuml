@@ -11,7 +11,7 @@
 #
 #
 import os
-import ROOT
+from ROOT import *
 from argparse import ArgumentParser
 import numpy as np
 import pandas as pd
@@ -83,17 +83,14 @@ def gettingsig(region, boundaries, transform):
 
 def categorizing(region,sigs,bkgs,nscan, minN, transform, nbin, floatB, n_fold, fold, earlystop):
 
-    f_sig = ROOT.TFile('outputs/%s/sig.root' % (region))
+    f_sig = TFile('outputs/%s/sig.root' % (region))
     t_sig = f_sig.Get('test')
  
-    f_bkg = ROOT.TFile('outputs/%s/bkg.root' % (region))
+    f_bkg = TFile('outputs/%s/bkg.root' % (region))
     t_bkg = f_bkg.Get('test')
 
-    h_sig=ROOT.TH1F('h_sig','h_sig',nscan,0,1)
-    h_bkg=ROOT.TH1F('h_bkg','h_bkg',nscan,0,1)
-
-    h_sig.Sumw2()
-    h_bkg.Sumw2()
+    h_sig = TH1F('h_sig','h_sig',nscan,0,1)
+    h_bkg = TH1F('h_bkg','h_bkg',nscan,0,1)
 
     t_sig.Draw("bdt_score%s>>h_sig"%('_t' if transform else ''), "weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
     t_bkg.Draw("bdt_score%s>>h_bkg"%('_t' if transform else ''), "weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
@@ -117,7 +114,8 @@ def categorizing(region,sigs,bkgs,nscan, minN, transform, nbin, floatB, n_fold, 
 
 def main():
 
-    ROOT.gROOT.SetBatch(True)
+    gROOT.SetBatch(True)
+    TH1.SetDefaultSumw2(1)
 
     args=getArgs()
 

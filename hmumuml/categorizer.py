@@ -21,22 +21,6 @@ def calc_sig(sig, bkg,s_err,b_err):
 
   return significance, uncert
 
-def hist_integral(hist,i,j,k=-999,l=-999):
-    err = Double()
-    if i>j or k>l:
-        n=0
-        err=0
-    elif k == -999 and l == -999: n = hist.IntegralAndError(i,j,err)
-    else: n = hist.IntegralAndError(i,j,k,l,err)
-    return n, err
-
-def sum_hist_integral(integrals,xs=1):
-    err, n = 0, 0
-    for integral in integrals:
-        n += integral[0]
-        err += integral[1]**2
-    return n*xs, sqrt(err)*xs
-
 def sum_z(zs):
     sumu=0
     sumz=0
