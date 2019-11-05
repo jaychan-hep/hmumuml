@@ -133,7 +133,8 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, nvbf, 
     for vb in tqdm(range(45, 95)):
 
         boundaries_VBF, zv = cgz.fit(vb, nscanvbf, nvbf, minN=minN, earlystop=earlystop)
-    
+        if boundaries_VBF == -1: break   
+ 
         h_sig_g = TH1F('h_sig_g','h_sig_g',nscan,0,1)
         t_sig.Draw("bdt_score%s>>h_sig_g"%('_t' if transform else ''),"weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d)&&(bdt_score_VBF%s<%f))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1,n_fold,fold if n_fold != 1 else 1, '_t' if transform else '', (vb-1.)/nscanvbf))
     
@@ -147,7 +148,8 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, nvbf, 
 
         cgz_g.smooth(int(fitboundary_g * nscan + 1), nscan)
         boundaries, zg = cgz_g.fit(1, nscan, nbin, minN=minN, floatB=floatB, earlystop=earlystop)
-    
+        if boundaries == -1: continue
+ 
         z = sqrt(zv**2 + zg**2)
         if z >= zmax:
             zmax, boundaries_VBF_max, boundaries_max = z, boundaries_VBF, boundaries
