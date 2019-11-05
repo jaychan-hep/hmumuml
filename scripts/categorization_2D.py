@@ -31,7 +31,7 @@ def getArgs():
     parser.add_argument('--nscanvbf', type = int, default = 100, help='number of scan.')
     parser.add_argument('-b', '--nbin', type = int, default = 3, choices = [1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16], help = 'number of BDT bins.')
     parser.add_argument('-v', '--vbf', type = int, default = 3, choices = [1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16], help = 'number of BDT bins.')
-    parser.add_argument('--skip', action = 'store_true', default = True, help = 'skip the hadd part')
+    parser.add_argument('--skip', action = 'store_true', default = False, help = 'skip the hadd part')
     parser.add_argument('--minN', type = float, default = 5, help = 'minimum number of events in mass window')
     #parser.add_argument('--val', action = 'store_true', default = False, help = 'use validation samples for categroization')
     parser.add_argument('-t', '--transform', action = 'store_true', default = True, help = 'use the transform scores for categroization')
@@ -105,11 +105,11 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, nvbf, 
     # get inputs
     f_sig = TFile('outputs/%s/sig.root' % (region))
     t_sig = f_sig.Get('test')
- 
+
     f_bkg = TFile('outputs/%s/bkg.root' % (region))
     t_bkg = f_bkg.Get('test')
 
-    h_sig_raw=TH2F('h_sig_raw','h_sig_raw',nscanvbf,0,1,nscan,0,1)
+    h_sig_raw = TH2F('h_sig_raw', 'h_sig_raw', nscanvbf, 0., 1., nscan, 0., 1.) 
     h_sig=TH1F('h_sig','h_sig',nscanvbf,0,1)
 
     # filling signal histograms
@@ -130,10 +130,11 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, nvbf, 
     cgz.smooth(int(fitboundary * nscanvbf + 1), nscanvbf)
 
     zmax, boundaries_VBF, boundaries = 0, -1, -1
-    for vb in tqdm(range(40, 80)):
+    for vb in tqdm(range(45, 95)):
 
         boundaries_VBF, zv = cgz.fit(vb, nscanvbf, nvbf, minN=minN, earlystop=earlystop)
-    
+        if boundaries_VBF == -1: break   
+ 
         h_sig_g = TH1F('h_sig_g','h_sig_g',nscan,0,1)
         t_sig.Draw("bdt_score%s>>h_sig_g"%('_t' if transform else ''),"weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d)&&(bdt_score_VBF%s<%f))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1,n_fold,fold if n_fold != 1 else 1, '_t' if transform else '', (vb-1.)/nscanvbf))
     
@@ -147,7 +148,8 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, nvbf, 
 
         cgz_g.smooth(int(fitboundary_g * nscan + 1), nscan)
         boundaries, zg = cgz_g.fit(1, nscan, nbin, minN=minN, floatB=floatB, earlystop=earlystop)
-    
+        if boundaries == -1: continue
+ 
         z = sqrt(zv**2 + zg**2)
         if z >= zmax:
             zmax, boundaries_VBF_max, boundaries_max = z, boundaries_VBF, boundaries
@@ -186,6 +188,14 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, nvbf, 
 
     return boundaries_VBF_max, boundaries_VBF_values, boundaries_max, boundaries_values, zmax, z
 
+def hist_integral(hist,i,j,k=-999,l=-999):
+    err = Double()
+    if i>j or k>l:
+        n=0
+        err=0
+    elif k == -999 and l == -999: n = hist.IntegralAndError(i,j,err)
+    else: n = hist.IntegralAndError(i,j,k,l,err)
+    return n, err
 
 def main():
 
@@ -196,9 +206,7 @@ def main():
 
     sigs = ['ggF','VBF','VH','ttH']
 
-    bkgs = ['data']
-
-    bkgs_VBF = ['data','ggF']
+    bkgs = ['data_sid']
 
     region = args.region
 
