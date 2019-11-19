@@ -47,13 +47,17 @@ def gettingsig(region, boundaries_VBF, boundaries, transform):
     yields = pd.DataFrame({'sig': [0.]*nbin,
                           'sig_err': [0.]*nbin,
                           'bkg': [0.]*nbin,
-                          'bkg_err': [0.]*nbin})
+                          'bkg_err': [0.]*nbin,
+                          'VBF': [0.]*nbin,
+                          'VBF_err': [0.]*nbin,
+                          'ggF': [0.]*nbin,
+                          'ggF_err': [0.]*nbin})
 
-    for category in ['sig', 'bkg']:
+    for category in ['sig', 'bkg', 'VBF', 'ggF']:
 
         for data in tqdm(read_root('outputs/%s/%s.root' % (region, category), key='test', columns=['bdt_score%s' % ('_t' if transform else ''), 'bdt_score_VBF%s' % ('_t' if transform else ''), 'm_mumu', 'weight', 'eventNumber'], chunksize=500000), desc='Loading %s' % category):
     
-            if category == 'sig':
+            if category in ['sig', 'VBF', 'ggF']:
                 data = data[(data.m_mumu >= 120) & (data.m_mumu <= 130)]
                 data['w'] = data.weight
     
@@ -89,6 +93,8 @@ def gettingsig(region, boundaries_VBF, boundaries, transform):
     zs = calc_sig(yields.sig, yields.bkg, yields.sig_err, yields.bkg_err)
     yields['z'] = zs[0]
     yields['u'] = zs[1]
+    yields['VBF purity [%]'] = yields['VBF']/yields['sig']*100
+    yields['s/b'] = yields['sig']/yields['bkg']
 
     print yields
 

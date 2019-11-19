@@ -83,10 +83,10 @@ The script will take the settings specified in the training config file `data/tr
 
 #### Optimizing the BDT boundaries
 
-`categorization_1D.py` will take the Higgs classifier scores of the samples and optimized the boundaries that give the best combined significance. `submit_categorization_optimization_2D.py` will submit the jobs for optimizing the 2D scan of the BDT boundaries using both Higgs and VBF classifiers. Note that `submit_categorization_optimization_2D.py` can only be run after `categorization_1D.py` has been run at least once.
+`categorization_1D.py` will take the Higgs classifier scores of the samples and optimize the boundaries that give the best combined significance. `categorization_2D.py`, on the other hand, takes both the Higgs classifier scores and the VBF classifier scores of the samples and optimizes the 2D boundaries that give the best combined significance.
 
 ```
-python categorization_1D.py [-r REGION] [-f NUMBER OF FOLDS] [-b NUMBER OF CATEGORIES] [-n NSCAN] [--floatB] [--minN minN]
+python categorization_1D.py [-r REGION] [-f NUMBER OF FOLDS] [-b NUMBER OF CATEGORIES] [-n NSCAN] [--floatB] [--minN minN] [--skip]
 
 Usage:
   -f, --fold          Number of folds of the categorization optimization. Default is 1.
@@ -94,10 +94,17 @@ Usage:
   -n, --nscan         Number of scans. Default is 100
   --minN,             minN is the minimum number of events required in the mass window. The default is 5.
   --floatB            To float the last BDT boundary, which means to veto the lowest BDT score events
+  --skip              To skip the hadd step (if you have already merged signal and background samples)
 ```
 
-After the jobs for running 2D scan are done, one can use `getSignificance_2D.py` to extract the results.
-
 ```
-python getSignificance_2D.py [-r REGION] [-b NUMBER OF ggF CATEGORIES] [-v NUMBER OF VBF CATEGORIES]
+python categorization_2D.py [-r REGION] [-f NUMBER OF FOLDS] [-b NUMBER OF CATEGORIES] [-b NUMBER OF ggF CATEGORIES] [-n NSCAN] [--floatB] [--minN minN] [--skip]
+
+Usage:
+  -f, --fold          Number of folds of the categorization optimization. Default is 1.
+  -b, --nbin          Number of BDT categories
+  -n, --nscan         Number of scans. Default is 100
+  --minN,             minN is the minimum number of events required in the mass window. The default is 5.
+  --floatB            To float the last BDT boundary, which means to veto the lowest BDT score events
+  --skip              To skip the hadd step (if you have already merged signal and background samples)
 ```
