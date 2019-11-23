@@ -49,7 +49,6 @@ class ApplyXGBHandler(object):
 
         self.train_variables = {}
         self.randomIndex = 'eventNumber'
-        self.weight = 'weight'
 
         self.models = {}
         self.observables = []
@@ -96,7 +95,6 @@ class ApplyXGBHandler(object):
             configs = json.loads(stream.read())
    
             config = configs["common"]
-            if 'weight' in config.keys(): self.weight = config['weight']
             if 'randomIndex' in config.keys(): self.randomIndex = config['randomIndex']
  
             if self.models:
@@ -122,14 +120,13 @@ class ApplyXGBHandler(object):
         for model in self.models:
             self._branches = self._branches | set(self.train_variables[model])
 
-        self._branches = self._branches | set([self.weight, self.randomIndex]) | set([p.split()[0] for p in self.preselections]) | set(self.observables)
+        self._branches = self._branches | set([self.randomIndex]) | set([p.split()[0] for p in self.preselections]) | set(self.observables)
         self._branches = list(self._branches)
 
         for model in self.models:
             self.train_variables[model] = [x.replace('noexpand:', '') for x in self.train_variables[model]]
         self.preselections = [x.replace('noexpand:', '') for x in self.preselections]
         self.randomIndex = self.randomIndex.replace('noexpand:', '')
-        self.weight = self.weight.replace('noexpand:', '')
 
         self._outbranches = [branch for branch in self._branches if 'noexpand' not in branch]
 
@@ -194,7 +191,6 @@ class ApplyXGBHandler(object):
         #TODO put this to the config
         for data in tqdm(read_root(sorted(f_list), key=self._inputTree, columns=self._branches, chunksize=self._chunksize), ncols=100, desc='XGB INFO: Applying BDTs to %s samples' % category):
             data = self.preselect(data)
-            data[self.weight] = data[self.weight] * scale
 
             out_data = pd.DataFrame()
 
