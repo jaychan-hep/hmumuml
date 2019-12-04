@@ -39,12 +39,15 @@ def compute_Y_jj(x):
 def compute_Delta_Phi(x, var, min_jet=0):
 
     if x.Jets_jetMultip < min_jet: return -9999
-    return TVector2.Phi_mpi_pi(x[var] - x.Z_Phi_FSR)
+    return TVector2.Phi_mpi_pi(x[var] - x.Z_Phi_OnlyNearFsr)
 
 def preselect(data):
 
-    data = data[data.Muons_Minv_MuMu_Fsr >= 110]
-    data = data[data.FinalSelection == True]
+    data = data[data.Muons_Minv_MuMu_OnlyNearFsr >= 110]
+    #data = data[data.FinalSelection == True]
+    data = data[data.PassesDiMuonSelection == 1]
+    data = data[data.PassesttHSelection == 0]
+    data = data[data.PassesVHSelection == 0]
     data = data[data.SampleOverlapWeight != False]
     data = data[data.EventWeight_MCCleaning_5 != 0]
 
@@ -63,8 +66,8 @@ def decorate(data):
     data['DeltaPhi_mumujj'] = data.apply(lambda x: compute_Delta_Phi(x, 'Jets_Phi_jj', min_jet=2), axis=1)
     data['DeltaPhi_mumuMET'] = data.apply(lambda x: compute_Delta_Phi(x, 'Event_MET_Phi'), axis=1)
 
-    data.rename(columns={'Muons_Minv_MuMu_Fsr': 'm_mumu', 'EventInfo_EventNumber': 'eventNumber', 'Jets_jetMultip': 'n_j'}, inplace=True)
-    data.drop(['FinalSelection', 'GlobalWeight', 'SampleOverlapWeight', 'EventWeight_MCCleaning_5'], axis=1, inplace=True)
+    data.rename(columns={'Muons_Minv_MuMu_OnlyNearFsr': 'm_mumu', 'EventInfo_EventNumber': 'eventNumber', 'Jets_jetMultip': 'n_j'}, inplace=True)
+    data.drop(['PassesDiMuonSelection', 'PassesttHSelection', 'PassesVHSelection', 'GlobalWeight', 'SampleOverlapWeight', 'EventWeight_MCCleaning_5'], axis=1, inplace=True)
     data = data.astype(float)
     data = data.astype({"n_j": int, 'eventNumber': int})
 
@@ -75,8 +78,8 @@ def main():
 
     args = getArgs()
 
-    variables = ['EventInfo_EventNumber', 'FinalSelection', 
-                 'Muons_{Minv_MuMu_Fsr,CosThetaStar}', 'Muons_*_{Lead,Sub}', 'Z_*', 'Jets_jetMultip', 'Jets_*_{Lead,Sub,jj}', 'Event_MET', 'Event_MET_Phi', 'Event_Ht',
+    variables = ['EventInfo_EventNumber', 'PassesDiMuonSelection', 'PassesttHSelection', 'PassesVHSelection', #'FinalSelection', 
+                 'Muons_{Minv_MuMu_OnlyNearFsr,CosThetaStar}', 'Muons_*_{Lead,Sub}', 'Z_*OnlyNearFsr', 'Jets_jetMultip', 'Jets_{PT,Eta,Phi,E,NTracks,TracksWidth,QGTag_BDTScore}_{Lead,Sub}', 'Jets_{PT,Eta,Phi,Minv}_jj', 'Event_MET', 'Event_MET_Phi', 'Event_Ht',
                  'GlobalWeight', 'SampleOverlapWeight', 'EventWeight_MCCleaning_5']
 
     if os.path.isfile(args.output): os.remove(args.output)
