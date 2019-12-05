@@ -1,6 +1,6 @@
 {"common":   {"train_signal": ["ggF", "VBF"],
               "train_background": ["Z", "ttbar", "diboson", "stop"],
-              "train_variables": ["Z_PT_FSR", "Z_Y_FSR", "noexpand:fabs(Muons_CosThetaStar)"],
+              "train_variables": ["Z_PT_OnlyNearFsr", "Z_Y_OnlyNearFsr", "noexpand:fabs(Muons_CosThetaStar)"],
               "preselections": ["m_mumu >= 120", "m_mumu <= 130"],
               "#signal_preselections": ["m_mumu >= 120", "m_mumu <= 130"],
               "#background_preselections": ["m_mumu >= 120", "m_mumu <= 130"],
