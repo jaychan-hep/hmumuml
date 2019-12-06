@@ -35,7 +35,7 @@ def main():
 
     condor_list = condor_booklist('scripts/submit_skim_ntuples.sh', 'skim_ntuples')
     condor_list.initialdir_in_arguments()
-    condor_list.set_JobFlavour('longlunch')
+    condor_list.set_JobFlavour('workday')
 
     for category in sample_list:
 

@@ -13,7 +13,7 @@ import os
 import math
 from argparse import ArgumentParser
 from ROOT import *
-#import numpy as np
+import numpy as np
 #import time
 import pandas as pd
 from root_pandas import *
@@ -48,8 +48,8 @@ def preselect(data):
     data = data[data.PassesDiMuonSelection == 1]
     data = data[data.SampleOverlapWeight != False]
     data = data[data.EventWeight_MCCleaning_5 != 0]
-    data = data[data.PassesVHSelection == 0]
-    data = data[data.PassesttHSelection == 0]
+    #data = data[data.PassesVHSelection == 0]
+    #data = data[data.PassesttHSelection == 0]
 
     return data
 
@@ -58,7 +58,8 @@ def decorate(data):
     if data.shape[0] == 0: return data
 
     data['weight'] = data.GlobalWeight * data.SampleOverlapWeight
-    data['Jets_Y_jj'] = data.apply(lambda x: compute_Y_jj(x), axis=1)
+    data['Jets_QG_Lead'] = np.heaviside(data.Jets_NTracks_Lead - 11, 0)
+    data['Jets_QG_Sub'] = np.heaviside(data.Jets_NTracks_Sub - 11, 0)
     data['DeltaPhi_mumumu1'] = data.apply(lambda x: compute_Delta_Phi(x, 'Muons_Phi_Lead'), axis=1)
     data['DeltaPhi_mumumu2'] = data.apply(lambda x: compute_Delta_Phi(x, 'Muons_Phi_Sub'), axis=1)
     data['DeltaPhi_mumuj1'] = data.apply(lambda x: compute_Delta_Phi(x, 'Jets_Phi_Lead', min_jet=1), axis=1)
@@ -69,7 +70,7 @@ def decorate(data):
     data.rename(columns={'Muons_Minv_MuMu_OnlyNearFsr': 'm_mumu', 'EventInfo_EventNumber': 'eventNumber', 'Jets_jetMultip': 'n_j'}, inplace=True)
     data.drop(['PassesDiMuonSelection', 'PassesttHSelection', 'PassesVHSelection', 'GlobalWeight', 'SampleOverlapWeight', 'EventWeight_MCCleaning_5'], axis=1, inplace=True)
     data = data.astype(float)
-    data = data.astype({"n_j": int, 'eventNumber': int})
+    data = data.astype({"n_j": int, 'eventNumber': int, 'Jets_QG_Lead': int, 'Jets_QG_Sub': int})
 
     return data
     
