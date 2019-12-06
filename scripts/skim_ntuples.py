@@ -58,6 +58,7 @@ def decorate(data):
     if data.shape[0] == 0: return data
 
     data['weight'] = data.GlobalWeight * data.SampleOverlapWeight
+    data['Jets_Y_jj'] = data.apply(lambda x: compute_Y_jj(x), axis=1)
     data['Jets_QG_Lead'] = np.heaviside(data.Jets_NTracks_Lead - 11, 0)
     data['Jets_QG_Sub'] = np.heaviside(data.Jets_NTracks_Sub - 11, 0)
     data['DeltaPhi_mumumu1'] = data.apply(lambda x: compute_Delta_Phi(x, 'Muons_Phi_Lead'), axis=1)
