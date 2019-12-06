@@ -48,8 +48,8 @@ def preselect(data):
     data = data[data.PassesDiMuonSelection == 1]
     data = data[data.SampleOverlapWeight != False]
     data = data[data.EventWeight_MCCleaning_5 != 0]
-    #data = data[data.PassesVHSelection == 0]
-    #data = data[data.PassesttHSelection == 0]
+    data = data[data.PassesVHSelection == 0]
+    data = data[data.PassesttHSelection == 0]
 
     return data
 
