@@ -43,13 +43,13 @@ def compute_Delta_Phi(x, var, min_jet=0):
 
 def compute_QG(x):
 
-    if x.Jets_jetMultip >= 1 and (abs(x.Jets_Eta_Lead > 2.1) or x.Jets_PT_Lead < 50):
+    if x.Jets_jetMultip >= 1 and (abs(x.Jets_Eta_Lead) > 2.1 or x.Jets_PT_Lead < 50):
         Jets_QGscore_Lead, Jets_QGflag_Lead = -1, -1
     else:
         Jets_QGscore_Lead = x.Jets_NTracks_Lead
         Jets_QGflag_Lead = np.heaviside(x.Jets_NTracks_Lead - 11, 0) + np.heaviside(-x.Jets_NTracks_Lead - 9999, -9999)
 
-    if x.Jets_jetMultip >= 2 and (abs(x.Jets_Eta_Sub > 2.1) or x.Jets_PT_Sub < 50):
+    if x.Jets_jetMultip >= 2 and (abs(x.Jets_Eta_Sub) > 2.1 or x.Jets_PT_Sub < 50):
         Jets_QGscore_Sub, Jets_QGflag_Sub = -1, -1
     else:
         Jets_QGscore_Sub = x.Jets_NTracks_Sub
