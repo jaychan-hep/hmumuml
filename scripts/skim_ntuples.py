@@ -41,6 +41,22 @@ def compute_Delta_Phi(x, var, min_jet=0):
     if x.Jets_jetMultip < min_jet: return -9999
     return TVector2.Phi_mpi_pi(x[var] - x.Z_Phi_OnlyNearFsr)
 
+def compute_QG(x):
+
+    if x.Jets_jetMultip >= 1 and (x.Jets_Eta_Lead > 2.1 or x.Jets_PT_Lead < 50):
+        Jets_QGscore_Lead, Jets_QGflag_Lead = -1, -1
+    else:
+        Jets_QGscore_Lead = x.Jets_NTracks_Lead
+        Jets_QGflag_Lead = np.heaviside(x.Jets_NTracks_Lead - 11, 0)
+
+    if x.Jets_jetMultip >= 2 and (x.Jets_Eta_Sub > 2.1 or x.Jets_PT_Sub < 50):
+        Jets_QGscore_Sub, Jets_QGflag_Sub = -1, -1
+    else:
+        Jets_QGscore_Sub = x.Jets_NTracks_Sub
+        Jets_QGflag_Sub = np.heaviside(x.Jets_NTracks_Sub - 11, 0)
+
+    return Jets_QGscore_Lead, Jets_QGflag_Lead, Jets_QGscore_Sub, Jets_QGflag_Sub
+
 def preselect(data):
 
     data = data[data.Muons_Minv_MuMu_OnlyNearFsr >= 110]
@@ -59,8 +75,7 @@ def decorate(data):
 
     data['weight'] = data.GlobalWeight * data.SampleOverlapWeight
     data['Jets_Y_jj'] = data.apply(lambda x: compute_Y_jj(x), axis=1)
-    data['Jets_QG_Lead'] = np.heaviside(data.Jets_NTracks_Lead - 11, 0)
-    data['Jets_QG_Sub'] = np.heaviside(data.Jets_NTracks_Sub - 11, 0)
+    data[['Jets_QGscore_Lead', 'Jets_QGflag_Lead', 'Jets_QGscore_Sub', 'Jets_QGflag_Sub']] = data.apply(lambda x: compute_QG(x), axis=1, result_type='expand')
     data['DeltaPhi_mumumu1'] = data.apply(lambda x: compute_Delta_Phi(x, 'Muons_Phi_Lead'), axis=1)
     data['DeltaPhi_mumumu2'] = data.apply(lambda x: compute_Delta_Phi(x, 'Muons_Phi_Sub'), axis=1)
     data['DeltaPhi_mumuj1'] = data.apply(lambda x: compute_Delta_Phi(x, 'Jets_Phi_Lead', min_jet=1), axis=1)
@@ -71,7 +86,7 @@ def decorate(data):
     data.rename(columns={'Muons_Minv_MuMu_OnlyNearFsr': 'm_mumu', 'EventInfo_EventNumber': 'eventNumber', 'Jets_jetMultip': 'n_j'}, inplace=True)
     data.drop(['PassesDiMuonSelection', 'PassesttHSelection', 'PassesVHSelection', 'GlobalWeight', 'SampleOverlapWeight', 'EventWeight_MCCleaning_5'], axis=1, inplace=True)
     data = data.astype(float)
-    data = data.astype({"n_j": int, 'eventNumber': int, 'Jets_QG_Lead': int, 'Jets_QG_Sub': int})
+    data = data.astype({"n_j": int, 'eventNumber': int, 'Jets_QGscore_Lead': int, 'Jets_QGflag_Lead': int, 'Jets_QGscore_Sub': int, 'Jets_QGflag_Sub': int, 'Jets_NTracks_Lead': int, 'Jets_NTracks_Sub': int})
 
     return data
     
