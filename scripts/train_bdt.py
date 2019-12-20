@@ -6,16 +6,19 @@ import numpy as np
 import pandas as pd
 from root_pandas import *
 import pickle
-from sklearn.metrics import roc_curve, auc, confusion_matrix
+from sklearn.metrics import roc_curve, auc, confusion_matrix, roc_auc_score
 from sklearn.preprocessing import StandardScaler, QuantileTransformer
 import xgboost as xgb
 from tabulate import tabulate
 #from bayes_opt import BayesianOptimization
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-import logging
+#import logging
 from pdb import set_trace
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+#logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+#logging.getLogger('matplotlib.font_manager').disabled = True
+import ROOT
+ROOT.gErrorIgnoreLevel = ROOT.kError + 1
 
 def getArgs():
     """Get arguments from command line."""
@@ -266,8 +269,8 @@ class XGBoostHandler(object):
         
         # construct DMatrix
         print 'XGB INFO: Constucting D-Matrix...'
-        self.m_dTrain[fold] = xgb.DMatrix(x_train.values, label=self.m_y_train[fold], weight=self.m_train_wt[fold], feature_names=self.train_variables)
-        self.m_dVal[fold] = xgb.DMatrix(x_val.values, label=self.m_y_val[fold], weight=self.m_val_wt[fold], feature_names=self.train_variables)
+        self.m_dTrain[fold] = xgb.DMatrix(x_train, label=self.m_y_train[fold], weight=self.m_train_wt[fold])
+        self.m_dVal[fold] = xgb.DMatrix(x_val, label=self.m_y_val[fold], weight=self.m_val_wt[fold])
         self.m_dTest[fold] = xgb.DMatrix(x_test)
         self.m_dTest_sig[fold] = xgb.DMatrix(x_test_sig)
         self.m_dTest_bkg[fold] = xgb.DMatrix(x_test_bkg)
@@ -317,6 +320,69 @@ class XGBoostHandler(object):
             plt.title('Score distribution test background')
             plt.show()
 
+    def plotFeaturesImportance(self, fold=0, save=True, show=False, type='weight'):
+        """Plot feature importance. Type can be 'weight', 'gain' or 'cover'"""
+
+        xgb.plot_importance(booster=self.m_bst[fold], importance_type='weight')
+        plt.tight_layout()
+
+        if save:
+            # create output directory
+            if not os.path.isdir('plots/feature_importance'):
+                os.makedirs('plots/feature_importance')
+            # save figure
+            plt.savefig('plots/feature_importance/%s_%d.pdf' % (self._region, fold))
+
+        if show: plt.show()
+
+        plt.clf()
+
+        return
+
+    def plotROC(self, fold=0, save=True, show=False):
+    
+        fpr_train, tpr_train, _ = roc_curve(self.m_y_train[fold], self.m_score_train[fold], sample_weight=self.m_train_wt[fold])
+        tpr_train, fpr_train = np.array(zip(*sorted(zip(tpr_train, fpr_train))))
+        roc_auc_train = 1 - auc(tpr_train, fpr_train)
+        fpr_val, tpr_val, _ = roc_curve(self.m_y_val[fold], self.m_score_val[fold], sample_weight=self.m_val_wt[fold])
+        tpr_val, fpr_val = np.array(zip(*sorted(zip(tpr_val, fpr_val))))
+        roc_auc_val = 1 - auc(tpr_val, fpr_val)
+        fpr_test, tpr_test, _ = roc_curve(self.m_y_test[fold], self.m_score_test[fold], sample_weight=self.m_test_wt[fold])
+        tpr_test, fpr_test = np.array(zip(*sorted(zip(tpr_test, fpr_test))))
+        roc_auc_test = 1 - auc(tpr_test, fpr_test)
+
+        fnr_train = 1.0 - fpr_train
+        fnr_val = 1.0 - fpr_val
+        fnr_test = 1.0 - fpr_test
+
+        plt.grid(color='gray', linestyle='--', linewidth=1)
+        plt.plot(tpr_train, fnr_train, label='Train set, area = %0.6f' % roc_auc_train, color='black', linestyle='dotted')
+        plt.plot(tpr_val, fnr_val, label='Val set, area = %0.6f' % roc_auc_val, color='blue', linestyle='dashdot')
+        plt.plot(tpr_test, fnr_test, label='Test set, area = %0.6f' % roc_auc_test, color='red', linestyle='dashed')
+        plt.plot([0, 1], [1, 0], linestyle='--', color='black', label='Luck')
+        plt.xlabel('Signal acceptance')
+        plt.ylabel('Background rejection')
+        plt.title('Receiver operating characteristic')
+        plt.xlim(0, 1)
+        plt.ylim(0, 1)
+        plt.xticks(np.arange(0, 1, 0.1))
+        plt.yticks(np.arange(0, 1, 0.1))
+        plt.legend(loc='lower left', framealpha=1.0)
+        plt.tight_layout()
+
+        if save:
+            # create output directory
+            if not os.path.isdir('plots/roc_curve'):
+                os.makedirs('plots/roc_curve')
+            # save figure
+            plt.savefig('plots/roc_curve/%s_%d.pdf' % (self._region, fold))
+
+        if show: plt.show()
+
+        plt.clf()
+
+        return
+
     def getAUC(self, fold=0, sample_set='val'):
 
         if sample_set == 'train':
@@ -326,7 +392,8 @@ class XGBoostHandler(object):
         elif sample_set == 'test':
             fpr, tpr, _ = roc_curve(self.m_y_test[fold], self.m_score_test[fold], sample_weight=self.m_test_wt[fold])
 
-        roc_auc = auc(fpr, tpr, reorder=True)
+        tpr, fpr = np.array(zip(*sorted(zip(tpr, fpr))))
+        roc_auc = 1 - auc(tpr, fpr)
 
         return self.params[0 if len(self.params) == 1 else fold], roc_auc
 
@@ -384,6 +451,8 @@ def main():
         print("param: %s, Val AUC: %s" % xgb.getAUC(i))
 
         #xgb.plotScore(i, 'test')
+        xgb.plotFeaturesImportance(i)
+        xgb.plotROC(i)
 
         xgb.transformScore(i)
 

@@ -12,7 +12,8 @@ from tqdm import tqdm
 import logging
 from pdb import set_trace
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
-
+import ROOT
+ROOT.gErrorIgnoreLevel = ROOT.kError + 1
 pd.options.mode.chained_assignment = None
 
 def getArgs():
@@ -23,6 +24,7 @@ def getArgs():
     parser.add_argument('-m', '--modelFolder', action='store', default='models', help='directory of BDT models')
     parser.add_argument('-o', '--outputFolder', action='store', default='outputs', help='directory for outputs')
     parser.add_argument('-r', '--region', action='store', choices=['two_jet', 'one_jet', 'zero_jet', 'all_jet'], default='zero_jet', help='Region to process')
+    parser.add_argument('-cat', '--category', action='store', nargs='+', help='apply only for specific categories')
     return parser.parse_args()
 
 class ApplyXGBHandler(object):
@@ -233,6 +235,7 @@ def main():
     sample_list = config['sample_list']
 
     for category in sample_list:
+        if args.category and category not in args.category: continue
         xgb.applyBDT(category)
 
     return
