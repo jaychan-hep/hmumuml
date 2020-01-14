@@ -59,13 +59,14 @@ def compute_QG(x):
 
 def preselect(data):
 
-    data = data[data.Muons_Minv_MuMu_OnlyNearFsr >= 110]
-    #data = data[data.FinalSelection == True]
-    data = data[data.PassesDiMuonSelection == 1]
-    data = data[data.SampleOverlapWeight != False]
-    data = data[data.EventWeight_MCCleaning_5 != 0]
-    data = data[data.PassesVHSelection == 0]
-    data = data[data.PassesttHSelection == 0]
+    data.query('Muons_Minv_MuMu_OnlyNearFsr >= 110', inplace=True)
+    #data.query('FinalSelection == True', inplace=True)
+    data.query('PassesDiMuonSelection == 1', inplace=True)
+    data.query('SampleOverlapWeight != False', inplace=True)
+    data.query('Muons_PT_Sub > 15', inplace=True)
+    data.query('EventWeight_MCCleaning_5 != 0', inplace=True)
+    data.query('PassesVHSelection == 0', inplace=True)
+    data.query('PassesttHSelection == 0', inplace=True)
 
     return data
 
