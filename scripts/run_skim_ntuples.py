@@ -8,13 +8,14 @@ import json
 def getArgs():
     """Get arguments from command line."""
     parser = ArgumentParser(description="Process input rootfiles into numpy arrays for Hmumu XGBoost analysis.")
-    parser.add_argument('-i', '--inputdir', action='store', default='inputs', help='Directory that contains ntuples.')
+    parser.add_argument('-i', '--inputdir', action = 'store', default = 'inputs', help = 'Directory that contains ntuples.')
     parser.add_argument('-c', '--check', action = 'store_true', default = False, help = 'Check the completeness')
     parser.add_argument('-s', '--skip', action = 'store_true', default = False, help = 'Skip checking the metadata')
+    parser.add_argument('-p', '--pattern', action = 'store', help = 'check only files matching specific patterns')
     return  parser.parse_args()
 
 
-def arrange_cmd(channel,category,inputdir, skip):
+def arrange_cmd(channel,category,inputdir, skip, pattern):
 
     cmd = []
 
@@ -22,6 +23,7 @@ def arrange_cmd(channel,category,inputdir, skip):
 
         if channel not in filename: continue
         if '.root' not in filename: continue
+        if pattern and pattern not in filename: continue
         if os.path.isfile('skimmed_ntuples/%s/%s' % (category, filename)):
 
             if skip: continue
@@ -37,7 +39,7 @@ def arrange_cmd(channel,category,inputdir, skip):
             t12 = f1.Get('two_jet')
 
             try:
-                if (t0.GetEntries("(PassesDiMuonSelection == 1) && (PassesttHSelection == 0) && (PassesVHSelection == 0) && Muons_Minv_MuMu_OnlyNearFsr >= 110 && SampleOverlapWeight && EventWeight_MCCleaning_5") == t1.GetEntries()) and (t1.GetEntries() == t10.GetEntries() + t11.GetEntries() + t12.GetEntries()):
+                if (t0.GetEntries("(PassesDiMuonSelection == 1) && (PassesttHSelection == 0) && (PassesVHSelection == 0) && Muons_PT_Sub > 15 && Muons_Minv_MuMu_OnlyNearFsr >= 110 && SampleOverlapWeight && EventWeight_MCCleaning_5") == t1.GetEntries()) and (t1.GetEntries() == t10.GetEntries() + t11.GetEntries() + t12.GetEntries()):
                         continue
                 else:
                     print "Events after desired selections don't match!! Please check!! Removing the skimmed file..."
@@ -69,7 +71,7 @@ def main():
 
         for channel in sample_list[category]:
 
-            cmd = arrange_cmd(channel,category,inputdir, args.skip)
+            cmd = arrange_cmd(channel,category,inputdir, args.skip, args.pattern)
             cmds.extend(cmd)
 
     if not args.check:

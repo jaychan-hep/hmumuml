@@ -27,7 +27,7 @@ def getArgs():
     parser = ArgumentParser()
     parser.add_argument('-r', '--region', action = 'store', choices = ['all_jet', 'two_jet', 'one_jet', 'zero_jet'], default = 'zero_jet', help = 'Region to process')
     parser.add_argument('-n', '--nscan', type = int, default = 100, help='number of scan.')
-    parser.add_argument('-b', '--nbin', type = int, default = 3, choices = [1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16], help = 'number of BDT bins.')
+    parser.add_argument('-b', '--nbin', type = int, default = 4, choices = [1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16], help = 'number of BDT bins.')
     parser.add_argument('--skip', action = 'store_true', default = False, help = 'skip the hadd part')
     parser.add_argument('--minN', type = float, default = 5, help = 'minimum number of events in mass window')
     #parser.add_argument('--val', action = 'store_true', default = False, help = 'use validation samples for categroization')
