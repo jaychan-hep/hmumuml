@@ -98,7 +98,9 @@ def main():
 
     variables = ['EventInfo_EventNumber', 'PassesDiMuonSelection', 'PassesttHSelection', 'PassesVHSelection', #'FinalSelection', 
                  'Muons_{Minv_MuMu_OnlyNearFsr,CosThetaStar}', 'Muons_*_{Lead,Sub}', 'Z_*OnlyNearFsr', 'Jets_jetMultip', 'Jets_{PT,Eta,Phi,E,NTracks,TracksWidth,QGTag_BDTScore}_{Lead,Sub}', 'Jets_{PT,Eta,Phi,Minv}_jj', 'Event_MET', 'Event_MET_Phi', 'Event_Ht',
-                 'GlobalWeight', 'SampleOverlapWeight', 'EventWeight_MCCleaning_5']
+                 'GlobalWeight', 'SampleOverlapWeight', 'EventWeight_MCCleaning_5',
+                 'ClassOut_XGB_*', 'Event_XGB_*Category',
+                 ]
 
     if os.path.isfile(args.output): os.remove(args.output)
 
