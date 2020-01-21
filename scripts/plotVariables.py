@@ -38,6 +38,14 @@ def Leg(hists, x0, y1):
 
 def plot_var(samples, region, var, varname, nbin, minvar, maxvar, adjustNdivision=False, discrete=False, text_label=False, category=None, category_name=None, categorization='Event_XGB_16_Category'):
 
+    print '=============================================='
+    if category:
+        if not category_name: category_name = category
+        print 'INFO: Processing region ', category_name
+    else:
+        print 'INFO: Processing region ', region
+    print 'INFO: Variable ->', var
+
     basepath = 'skimmed_ntuples/'
 
     hist = OrderedDict()
@@ -46,7 +54,7 @@ def plot_var(samples, region, var, varname, nbin, minvar, maxvar, adjustNdivisio
 
     for sample_name in samples:
 
-        print sample_name
+        print 'INFO: Include sample ', sample_name
 
         for process in samples[sample_name]['process']:
 
@@ -110,7 +118,6 @@ def plot_var(samples, region, var, varname, nbin, minvar, maxvar, adjustNdivisio
         C1.Print("Variables/%s/%s.pdf" % (region, var.replace('/','_')))
 
     else:
-        if not category_name: category_name = category
 
         if not os.path.isdir('%s/%s' % (categorization, category_name)):
             os.makedirs('%s/%s' % (categorization, category_name))
@@ -123,23 +130,23 @@ def plot_var(samples, region, var, varname, nbin, minvar, maxvar, adjustNdivisio
 
 def plotVars(region, category=None, category_name=None, categorization='Event_XGB_16_Category'):
 
-    samples = OrderedDict([
-        ('Data sideband', {'process': ['data_sid'], 'selection': 'weight*(m_mumu>=110&&m_mumu<=180)', 'color': kBlack}),
-        #('Data center', {'process': ['data_cen'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kBlue+3, 'style': 2}),
-        ('VBF', {'process': ['VBF'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kRed, 'width': 3}),
-        ('ggF', {'process': ['ggF'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kOrange+2, 'width': 3}),
-        ('MC bkg sideband', {'process': ['Z', 'ttbar', 'diboson', 'stop'], 'selection': 'weight*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130))', 'color': kBlue}),
-        ('MC bkg center', {'process': ['Z', 'ttbar', 'diboson', 'stop'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kGreen+2})
-    ])
+    # if not category:
 
-    if not category:
+    #     samples = OrderedDict([
+    #         ('Data sideband', {'process': ['data_sid'], 'selection': 'weight*(m_mumu>=110&&m_mumu<=180)', 'color': kBlack}),
+    #         #('Data center', {'process': ['data_cen'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kBlue+3, 'style': 2}),
+    #         ('VBF', {'process': ['VBF'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kRed, 'width': 3}),
+    #         ('ggF', {'process': ['ggF'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kOrange+2, 'width': 3}),
+    #         ('MC bkg sideband', {'process': ['Z', 'ttbar', 'diboson', 'stop'], 'selection': 'weight*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130))', 'color': kBlue}),
+    #         ('MC bkg center', {'process': ['Z', 'ttbar', 'diboson', 'stop'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kGreen+2})
+    #     ])
 
-        region_code = {'zero_jet': 0, 'one_jet': 1, 'two_jet': 2}
+    #     region_code = {'zero_jet': 0, 'one_jet': 1, 'two_jet': 2}
 
-        plot_var(samples, region,'ClassOut_XGB_Higgs', 'O_{ggF}^{(%d)}' % region_code[region], 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
-        if region == 'two_jet': plot_var(samples, region,'ClassOut_XGB_VBF', 'O_{VBF}', 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
-        plot_var(samples, region,'ClassOut_XGB_QG_Higgs', 'O_{ggF}^{(%d)}' % region_code[region], 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
-        if region == 'two_jet': plot_var(samples, region,'ClassOut_XGB_QG_VBF', 'O_{VBF}', 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
+    #     plot_var(samples, region,'ClassOut_XGB_Higgs', 'O_{ggF}^{(%d)}' % region_code[region], 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
+    #     if region == 'two_jet': plot_var(samples, region,'ClassOut_XGB_VBF', 'O_{VBF}', 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
+    #     plot_var(samples, region,'ClassOut_XGB_QG_Higgs', 'O_{ggF}^{(%d)}' % region_code[region], 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
+    #     if region == 'two_jet': plot_var(samples, region,'ClassOut_XGB_QG_VBF', 'O_{VBF}', 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
 
     samples = OrderedDict([
         ('Data sideband', {'process': ['data_sid'], 'selection': 'weight*(m_mumu>=110&&m_mumu<=180)', 'color': kBlack}),
@@ -149,7 +156,8 @@ def plotVars(region, category=None, category_name=None, categorization='Event_XG
         ('MC bkg center', {'process': ['Z', 'ttbar', 'diboson', 'stop'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kGreen+2})
     ])
 
-    plot_var(samples, region,'m_mumu', 'm_{#mu#mu} [GeV]', 20, 110, 180, category=category, category_name=category_name, categorization=categorization)
+    plot_var(samples, region, 'm_mumu', 'm_{#mu#mu} [GeV]', 14, 110, 180, category=category, category_name=category_name, categorization=categorization)
+    return
     plot_var(samples, region, 'Z_PT_OnlyNearFsr', 'p_{T}^{#mu#mu} [GeV]', 20, 0, 200 if 'two_jet' in region else 100, category=category, category_name=category_name, categorization=categorization)
     plot_var(samples, region, 'Z_Y_OnlyNearFsr', 'y_{#mu#mu}', 20, -4, 4, category=category, category_name=category_name, categorization=categorization)
     plot_var(samples, region, 'fabs(Muons_CosThetaStar)', '|cos#theta*|', 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
@@ -217,8 +225,6 @@ def main():
             if category <= 8: region = 'two_jet'
             elif category <= 12: region = 'one_jet'
             else: region = 'zero_jet'
-
-            print "Process category: ", categories[category]
 
             plotVars(region, category=category, category_name=categories[category], categorization=args.categorization)
 
