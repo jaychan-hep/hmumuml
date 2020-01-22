@@ -63,7 +63,7 @@ def preselect(data):
     #data.query('FinalSelection == True', inplace=True)
     data.query('PassesDiMuonSelection == 1', inplace=True)
     data.query('SampleOverlapWeight != False', inplace=True)
-    #data.query('Muons_PT_Sub > 15', inplace=True)
+    data.query('Muons_PT_Sub > 15', inplace=True)
     data.query('EventWeight_MCCleaning_5 != 0', inplace=True)
     data.query('PassesVHSelection == 0', inplace=True)
     data.query('PassesttHSelection == 0', inplace=True)

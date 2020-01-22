@@ -10,6 +10,19 @@
 import os
 from datetime import datetime
 
+def createScript(path, script):
+
+    dir_path = os.path.dirname(path)
+
+    if not os.path.isdir(dir_path):
+        os.makedirs(dir_path)
+
+    file = open(path, "w")
+    file.write(script)
+    file.close()
+
+    return
+
 class condor_booklist(object):
     """Class for condor job bookkeeping"""
 

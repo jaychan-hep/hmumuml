@@ -55,7 +55,7 @@ def gettingsig(region, boundaries_VBF, boundaries, transform):
 
     for category in ['sig', 'bkg', 'VBF', 'ggF']:
 
-        for data in tqdm(read_root('outputs/%s/%s.root' % (region, category), key='test', columns=['bdt_score%s' % ('_t' if transform else ''), 'bdt_score_VBF%s' % ('_t' if transform else ''), 'm_mumu', 'weight', 'eventNumber'], chunksize=500000), desc='Loading %s' % category):
+        for data in tqdm(read_root('outputs/%s/%s.root' % (region, category), key='test', columns=['bdt_score%s' % ('_t' if transform else ''), 'bdt_score_VBF%s' % ('_t' if transform else ''), 'm_mumu', 'weight', 'eventNumber'], chunksize=500000), desc='Loading %s' % category, ncols=70):
     
             if category in ['sig', 'VBF', 'ggF']:
                 data = data[(data.m_mumu >= 120) & (data.m_mumu <= 130)]
@@ -96,12 +96,12 @@ def gettingsig(region, boundaries_VBF, boundaries, transform):
     yields['VBF purity [%]'] = yields['VBF']/yields['sig']*100
     yields['s/b'] = yields['sig']/yields['bkg']
 
-    print yields
+    print(yields)
 
     z = np.sqrt((yields['z']**2).sum())
     u = np.sqrt((yields['z']**2 * yields['u']**2).sum())/z
 
-    print 'Significance:  %f +/- %f' % (z, abs(u))
+    print(f'Significance:  {z:.4f} +/- {abs(u):.4f}')
 
     return z, abs(u)
 
@@ -136,7 +136,7 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, nvbf, 
     cgz.smooth(int(fitboundary * nscanvbf + 1), nscanvbf)
 
     zmax, boundaries_VBF, boundaries = 0, -1, -1
-    for vb in tqdm(range(45, 95)):
+    for vb in tqdm(range(45, 95), ncols=70):
 
         boundaries_VBF, zv = cgz.fit(vb, nscanvbf, nvbf, minN=minN, earlystop=earlystop)
         if boundaries_VBF == -1: break   
@@ -163,11 +163,11 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, nvbf, 
     boundaries_VBF_values = [(i-1.)/nscanvbf for i in boundaries_VBF_max]
     boundaries_values = [(i-1.)/nscan for i in boundaries_max]
 
-    print '========================================================================='
-    print 'Fold number %d' %fold
-    print 'VBF boundaries: ', boundaries_VBF_values
-    print 'ggF boundaries: ', boundaries_values
-    print 'Total significane by fit: ', zmax
+    print('=========================================================================')
+    print('Fold number ', fold)
+    print('VBF boundaries: ', boundaries_VBF_values)
+    print('ggF boundaries: ', boundaries_values)
+    print('Total significane by fit: ', zmax)
 
 
     # get the significance estimated from the unfitted histogram
@@ -187,8 +187,8 @@ def categorizing(region,sigs,bkgs,nscan, nscanvbf, minN, transform, nbin, nvbf, 
     zs = [ calc_sig(nsig[i][0], nbkg[i][0], nsig[i][1], nbkg[i][1]) for i in range(len(nsig))]
     z, u = sum_z(zs)
 
-    print 'Significance from raw event yields in categorization set: ', z
-    print '========================================================================='
+    print('Significance from raw event yields in categorization set: ', z)
+    print('=========================================================================')
 
     #raw_input('Press enter to continue')
 
@@ -249,9 +249,9 @@ def main():
         smaxs_raw.append(out[5])
 
     smax = sum(smaxs)/n_fold
-    print 'Averaged significance: ', smax
+    print('Averaged significance: ', smax)
     smax_raw = sum(smaxs_raw)/n_fold
-    print 'Averaged raw significance: ', smax_raw
+    print('Averaged raw significance: ', smax_raw)
 
     s, u = gettingsig(region, boundaries_VBF_values, boundaries_values, args.transform)
 
@@ -273,7 +273,7 @@ def main():
     outs['fine_tuned'] = False
 
     if not os.path.isdir('significances/%s'%region):
-        print 'INFO: Creating output folder: "significances/%s"'%region
+        print(f'INFO: Creating output folder: "significances/{region}"')
         os.makedirs("significances/%s"%region)
 
     with open('significances/%s/%d_%d.json' % (region, args.vbf, args.nbin), 'w') as json_file:

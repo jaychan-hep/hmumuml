@@ -28,7 +28,7 @@ class AtlasStyle( ROOT.TStyle ):
     # @param title The title given to the style
     def __init__( self, name = "AtlasStyle", title = "ATLAS style object" ):
 
-        print "Setting ATLAS style"
+        print("Setting ATLAS style")
 
         # Initialise the base class:
         ROOT.TStyle.__init__( self, name, title )

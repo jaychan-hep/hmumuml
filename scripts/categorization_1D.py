@@ -11,7 +11,7 @@
 #
 #
 import os
-from ROOT import *
+from ROOT import TFile, TH1F, TH1, gROOT
 from argparse import ArgumentParser
 import numpy as np
 import pandas as pd
@@ -50,7 +50,7 @@ def gettingsig(region, boundaries, transform):
 
     for category in ['sig', 'bkg', 'VBF', 'ggF']:
 
-        for data in tqdm(read_root('outputs/%s/%s.root' % (region, category), key='test', columns=['bdt_score%s' % ('_t' if transform else ''), 'm_mumu', 'weight', 'eventNumber'], chunksize=500000), desc='Loading %s' % category):
+        for data in tqdm(read_root('outputs/%s/%s.root' % (region, category), key='test', columns=['bdt_score%s' % ('_t' if transform else ''), 'm_mumu', 'weight', 'eventNumber'], chunksize=500000), desc='Loading %s' % category, ncols=70):
     
             if category in ['sig', 'VBF', 'ggF']:
                 data = data[(data.m_mumu >= 120) & (data.m_mumu <= 130)]
@@ -78,12 +78,12 @@ def gettingsig(region, boundaries, transform):
     yields['VBF purity [%]'] = yields['VBF']/yields['sig']*100
     yields['s/b'] = yields['sig']/yields['bkg']
 
-    print yields
+    print(yields)
 
     z = np.sqrt((yields['z']**2).sum())
     u = np.sqrt((yields['z']**2 * yields['u']**2).sum())/z
 
-    print 'Significance:  %f +/- %f' % (z, abs(u))
+    print(f'Significance:  {z:.4f} +/- {abs(u):.4f}')
 
     return z, abs(u)
 
@@ -101,18 +101,18 @@ def categorizing(region,sigs,bkgs,nscan, minN, transform, nbin, floatB, n_fold, 
     t_sig.Draw("bdt_score%s>>h_sig"%('_t' if transform else ''), "weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
     t_bkg.Draw("bdt_score%s>>h_bkg"%('_t' if transform else ''), "weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
 
-    print 'INFO: scanning all of the possibilities...'
+    print('INFO: scanning all of the possibilities...')
     cgz = categorizer(h_sig, h_bkg)
     #cgz.smooth(60, nscan)  #uncomment this line to fit a function to the BDT distribution. Usage: categorizer.smooth(left_bin_to_fit, right_bin_to_fit, SorB='S' (for signal) or 'B' (for bkg), function='Epoly2', printMessage=False (switch to "True" to print message))
     bmax, zmax = cgz.fit(1, nscan, nbin, minN=minN, floatB=floatB, earlystop=earlystop, pbar=True)
 
     boundaries = bmax
     boundaries_values = [(i-1.)/nscan for i in boundaries]
-    print '========================================================================='
-    print 'Fold number %d' %fold
-    print 'The maximal significance:  %f' %(zmax)
-    print 'Boundaries: ', boundaries_values
-    print '========================================================================='
+    print('=========================================================================')
+    print(f'Fold number {fold}')
+    print(f'The maximal significance:  {zmax}')
+    print('Boundaries: ', boundaries_values)
+    print('=========================================================================')
 
     return boundaries, boundaries_values, zmax
     
@@ -130,7 +130,7 @@ def main():
     bkgs = ['data_sid']
 
     if args.floatB and args.nbin == 16:
-        print 'ERROR: With floatB option, the maximun nbin is 15!!'
+        print('ERROR: With floatB option, the maximun nbin is 15!!')
         quit()
 
 
@@ -163,7 +163,7 @@ def main():
         smaxs.append(smax)
 
     smax = sum(smaxs)/n_fold
-    print 'Averaged significance: ', smax
+    print('Averaged significance: ', smax)
 
     s, u = gettingsig(region, boundaries_values, args.transform)
 
@@ -181,7 +181,7 @@ def main():
     outs['fine_tuned'] = False
 
     if not os.path.isdir('significances/%s'%region):
-        print 'INFO: Creating output folder: "significances/%s"'%region
+        print(f'INFO: Creating output folder: "significances/{region}"')
         os.makedirs("significances/%s"%region)
 
     with open('significances/%s/%d.json' % (region, args.nbin), 'w') as json_file:

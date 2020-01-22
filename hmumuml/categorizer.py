@@ -1,4 +1,4 @@
-from ROOT import TH1F
+from ROOT import TH1F, TH1
 import ROOT
 from numpy import sqrt, log, ceil, log2
 from tqdm import tqdm
@@ -206,7 +206,7 @@ class categorizer(object):
 
             bmax, zmax, stop = -1, -1, 0
  
-            for b in (range(bl, br+1) if not pbar else tqdm(range(bl, br+1))):
+            for b in (range(bl, br+1) if not pbar else tqdm(range(bl, br+1), ncols=70)):
 
                 b1, z1 = self.fit(bl, b-1, N1, minN=minN, floatB=floatB, earlystop=earlystop)
                 if b1 == -1: continue

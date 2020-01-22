@@ -11,7 +11,7 @@
 #
 #
 import os
-from ROOT import * 
+import ROOT
 from argparse import ArgumentParser
 import AtlasStyle, AtlasLabel
 from collections import OrderedDict
@@ -25,7 +25,7 @@ def getArgs():
 
 def Leg(hists, x0, y1):
 
-    l=TLegend(x0, y1-0.05*len(hists), x0+0.46, y1)
+    l = ROOT.TLegend(x0, y1-0.05*len(hists), x0+0.46, y1)
     l.SetFillColor(0)
     l.SetLineColor(1)
     l.SetTextSize(0.04)
@@ -38,23 +38,23 @@ def Leg(hists, x0, y1):
 
 def plot_var(samples, region, var, varname, nbin, minvar, maxvar, adjustNdivision=False, discrete=False, text_label=False, category=None, category_name=None, categorization='Event_XGB_16_Category'):
 
-    print '=============================================='
+    print('==============================================')
     if category:
         if not category_name: category_name = category
-        print 'INFO: Processing region ', category_name
+        print('INFO: Processing region ', category_name)
     else:
-        print 'INFO: Processing region ', region
-    print 'INFO: Variable ->', var
+        print('INFO: Processing region ', region)
+    print('INFO: Variable ->', var)
 
     basepath = 'skimmed_ntuples/'
 
     hist = OrderedDict()
     for i, sample_name in enumerate(samples):
-        hist[sample_name] = TH1F('hist' + str(i), 'hist' + str(i), nbin, minvar, maxvar)
+        hist[sample_name] = ROOT.TH1F('hist' + str(i), 'hist' + str(i), nbin, minvar, maxvar)
 
     for sample_name in samples:
 
-        print 'INFO: Include sample ', sample_name
+        print('INFO: Include sample ', sample_name)
 
         for process in samples[sample_name]['process']:
 
@@ -62,9 +62,9 @@ def plot_var(samples, region, var, varname, nbin, minvar, maxvar, adjustNdivisio
 
             for app in os.listdir(path):
 
-                f = TFile(path + '/' + app)
+                f = ROOT.TFile(path + '/' + app)
                 t = f.Get(region)
-                htemp=TH1F('htemp','htemp', nbin, minvar, maxvar)
+                htemp = ROOT.TH1F('htemp','htemp', nbin, minvar, maxvar)
                 htemp.Sumw2()
                 t.Draw('%s>>htemp' % (var), '%s%s' %(samples[sample_name]['selection'], '' if not category else '*(%s==%d)' %(categorization, category)))
                 hist[sample_name].Add(htemp)
@@ -76,21 +76,21 @@ def plot_var(samples, region, var, varname, nbin, minvar, maxvar, adjustNdivisio
         if 'style' in samples[sample_name]: hist[sample_name].SetLineStyle(samples[sample_name]['style'])
         hist[sample_name].SetMarkerSize(0)
 
-    C1 = TCanvas()
+    C1 = ROOT.TCanvas()
     C1.SetCanvasSize(400,370)
     C1.SetLeftMargin(0.15)
     C1.SetRightMargin(0.05)
     C1.SetTopMargin(0.05)
     C1.SetBottomMargin(0.15)
 
-    THSvar = THStack(var,'')
+    THSvar = ROOT.THStack(var,'')
 
     for sample_name in samples:
         THSvar.Add(hist[sample_name], 'hist E1')
 
     THSvar.Draw('NoStack')
 
-    if adjustNdivision: THSvar.GetXaxis().SetNdivisions(adjustNdivision, kFALSE)
+    if adjustNdivision: THSvar.GetXaxis().SetNdivisions(adjustNdivision, ROOT.kFALSE)
 
     THSvar.GetXaxis().SetTitle("%s" % (varname))
     #THSvar.GetXaxis().SetTitleOffset(1.5)
@@ -103,7 +103,7 @@ def plot_var(samples, region, var, varname, nbin, minvar, maxvar, adjustNdivisio
          for i in range(nbin):
             THSvar.GetXaxis().SetBinLabel(i+1, text_label[i])
     max_value = THSvar.GetMaximum('NoStack')
-    hist[samples.keys()[0]].GetYaxis().SetRangeUser(0, max_value * 1.4)
+    hist[list(samples)[0]].GetYaxis().SetRangeUser(0, max_value * 1.4)
 
     AtlasLabel.ATLASLabel(0.185, 0.885, " Internal")
     AtlasLabel.myText(0.185, 0.885-0.063, "#sqrt{s} = 13 TeV, 139 fb^{-1}")
@@ -130,34 +130,33 @@ def plot_var(samples, region, var, varname, nbin, minvar, maxvar, adjustNdivisio
 
 def plotVars(region, category=None, category_name=None, categorization='Event_XGB_16_Category'):
 
-    # if not category:
+    if not category:
 
-    #     samples = OrderedDict([
-    #         ('Data sideband', {'process': ['data_sid'], 'selection': 'weight*(m_mumu>=110&&m_mumu<=180)', 'color': kBlack}),
-    #         #('Data center', {'process': ['data_cen'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kBlue+3, 'style': 2}),
-    #         ('VBF', {'process': ['VBF'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kRed, 'width': 3}),
-    #         ('ggF', {'process': ['ggF'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kOrange+2, 'width': 3}),
-    #         ('MC bkg sideband', {'process': ['Z', 'ttbar', 'diboson', 'stop'], 'selection': 'weight*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130))', 'color': kBlue}),
-    #         ('MC bkg center', {'process': ['Z', 'ttbar', 'diboson', 'stop'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kGreen+2})
-    #     ])
+        samples = OrderedDict([
+            ('Data sideband', {'process': ['data_sid'], 'selection': 'weight*(m_mumu>=110&&m_mumu<=180)', 'color': ROOT.kBlack}),
+            #('Data center', {'process': ['data_cen'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': ROOT.kBlue+3, 'style': 2}),
+            ('VBF', {'process': ['VBF'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': ROOT.kRed, 'width': 3}),
+            ('ggF', {'process': ['ggF'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': ROOT.kOrange+2, 'width': 3}),
+            ('MC bkg sideband', {'process': ['Z', 'ttbar', 'diboson', 'stop'], 'selection': 'weight*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130))', 'color': ROOT.kBlue}),
+            ('MC bkg center', {'process': ['Z', 'ttbar', 'diboson', 'stop'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': ROOT.kGreen+2})
+        ])
 
-    #     region_code = {'zero_jet': 0, 'one_jet': 1, 'two_jet': 2}
+        region_code = {'zero_jet': 0, 'one_jet': 1, 'two_jet': 2}
 
-    #     plot_var(samples, region,'ClassOut_XGB_Higgs', 'O_{ggF}^{(%d)}' % region_code[region], 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
-    #     if region == 'two_jet': plot_var(samples, region,'ClassOut_XGB_VBF', 'O_{VBF}', 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
-    #     plot_var(samples, region,'ClassOut_XGB_QG_Higgs', 'O_{ggF}^{(%d)}' % region_code[region], 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
-    #     if region == 'two_jet': plot_var(samples, region,'ClassOut_XGB_QG_VBF', 'O_{VBF}', 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
+        plot_var(samples, region,'ClassOut_XGB_Higgs', 'O_{ggF}^{(%d)}' % region_code[region], 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
+        if region == 'two_jet': plot_var(samples, region,'ClassOut_XGB_VBF', 'O_{VBF}', 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
+        plot_var(samples, region,'ClassOut_XGB_QG_Higgs', 'O_{ggF}^{(%d)}' % region_code[region], 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
+        if region == 'two_jet': plot_var(samples, region,'ClassOut_XGB_QG_VBF', 'O_{VBF}', 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
 
     samples = OrderedDict([
-        ('Data sideband', {'process': ['data_sid'], 'selection': 'weight*(m_mumu>=110&&m_mumu<=180)', 'color': kBlack}),
-        #('Data center', {'process': ['data_cen'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kBlue+3, 'style': 2}),
-        ('Higgs signal', {'process': ['VBF', 'VH', 'ggF', 'ttH'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kRed, 'width': 3}),
-        ('MC bkg sideband', {'process': ['Z', 'ttbar', 'diboson', 'stop'], 'selection': 'weight*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130))', 'color': kBlue}),
-        ('MC bkg center', {'process': ['Z', 'ttbar', 'diboson', 'stop'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': kGreen+2})
+        ('Data sideband', {'process': ['data_sid'], 'selection': 'weight*(m_mumu>=110&&m_mumu<=180)', 'color': ROOT.kBlack}),
+        #('Data center', {'process': ['data_cen'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': ROOT.kBlue+3, 'style': 2}),
+        ('Higgs signal', {'process': ['VBF', 'VH', 'ggF', 'ttH'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': ROOT.kRed, 'width': 3}),
+        ('MC bkg sideband', {'process': ['Z', 'ttbar', 'diboson', 'stop'], 'selection': 'weight*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130))', 'color': ROOT.kBlue}),
+        ('MC bkg center', {'process': ['Z', 'ttbar', 'diboson', 'stop'], 'selection': 'weight*(m_mumu>=120&&m_mumu<=130)', 'color': ROOT.kGreen+2})
     ])
 
     plot_var(samples, region, 'm_mumu', 'm_{#mu#mu} [GeV]', 14, 110, 180, category=category, category_name=category_name, categorization=categorization)
-    return
     plot_var(samples, region, 'Z_PT_OnlyNearFsr', 'p_{T}^{#mu#mu} [GeV]', 20, 0, 200 if 'two_jet' in region else 100, category=category, category_name=category_name, categorization=categorization)
     plot_var(samples, region, 'Z_Y_OnlyNearFsr', 'y_{#mu#mu}', 20, -4, 4, category=category, category_name=category_name, categorization=categorization)
     plot_var(samples, region, 'fabs(Muons_CosThetaStar)', '|cos#theta*|', 20, 0, 1, category=category, category_name=category_name, categorization=categorization)
@@ -188,8 +187,8 @@ def main():
 
     args=getArgs()
 
-    gROOT.SetBatch(True)
-    TH1.SetDefaultSumw2(1)
+    ROOT.gROOT.SetBatch(True)
+    ROOT.TH1.SetDefaultSumw2(1)
 
     if args.mode == 'inclusive':
 
