@@ -28,7 +28,7 @@ def arrange_cmd(channel,category,inputdir, skip, pattern):
 
             if skip: continue
 
-            print 'Checking %s...' % filename
+            print('Checking %s...' % filename)
 
             f0 = TFile('inputs/%s' % filename)
             t0 = f0.Get('DiMuonNtuple')
@@ -42,13 +42,13 @@ def arrange_cmd(channel,category,inputdir, skip, pattern):
                 if (t0.GetEntries("(PassesDiMuonSelection == 1) && (PassesttHSelection == 0) && (PassesVHSelection == 0) && Muons_PT_Sub > 15 && Muons_Minv_MuMu_OnlyNearFsr >= 110 && SampleOverlapWeight && EventWeight_MCCleaning_5") == t1.GetEntries()) and (t1.GetEntries() == t10.GetEntries() + t11.GetEntries() + t12.GetEntries()):
                         continue
                 else:
-                    print "Events after desired selections don't match!! Please check!! Removing the skimmed file..."
+                    print("Events after desired selections don't match!! Please check!! Removing the skimmed file...")
                     #os.remove('skimmed_ntuples/%s/%s' % (category, filename))
             except Exception as e:
-                print e
+                print(e)
 
         else:
-            print 'Missing %s!!' % filename
+            print('Missing %s!!' % filename)
 
         if not os.path.isdir('skimmed_ntuples/%s' % category): os.makedirs('skimmed_ntuples/%s' % category)
         cmd.append("python scripts/skim_ntuples.py -i inputs/%s -o skimmed_ntuples/%s/%s" % (filename, category, filename))
@@ -76,13 +76,13 @@ def main():
 
     if not args.check:
         for cmd in cmds:
-            print cmd
+            print(cmd)
             os.system(cmd)
 
     if args.check:
-        print '='*20
-        print 'Unresolved files: ', len(cmds)
-        print '='*20
+        print('='*20)
+        print('Unresolved files: ', len(cmds))
+        print('='*20)
     
 if __name__=='__main__':
     main()

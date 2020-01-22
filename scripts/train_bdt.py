@@ -38,7 +38,7 @@ class XGBoostHandler(object):
 
     def __init__(self, configPath, region=''):
 
-        print """
+        print("""
 ========================================================================
 || **     *     ** ###### $$        ######    ****    #       # %%%%% ||
 ||  **   ***   **  ##     $$       ##       ***  ***  ##     ## %     ||
@@ -52,7 +52,7 @@ class XGBoostHandler(object):
 ||        $$      ###  ###         XX  XX     GGG     GG   B    BB    ||
 ||        $$        ####         XX      XX     GGGGGG     BBBBB      ||
 ========================================================================
-              """
+              """)
 
 
         self._region = region
@@ -149,13 +149,13 @@ class XGBoostHandler(object):
             logging.error(e)
 
     def checkConfig(self):
-        if not self.train_signal: print 'ERROR: no training signal!!'
-        if not self.train_background: print 'ERROR: no training background!!'
-        if not self.train_variables: print 'ERROR: no training variables!!'
+        if not self.train_signal: print('ERROR: no training signal!!')
+        if not self.train_background: print('ERROR: no training background!!')
+        if not self.train_variables: print('ERROR: no training variables!!')
 
     def setParams(self, params, fold=-1):
 
-        print 'XGB INFO: setting hyperparameters...'
+        print('XGB INFO: setting hyperparameters...')
         if fold == -1:
             self.params = [{'eval_metric': ['auc', 'logloss']}]
             fold = 0
@@ -196,27 +196,25 @@ class XGBoostHandler(object):
             for bkg in os.listdir(bkg_cat_folder):
                 if bkg.endswith('.root'): bkg_list.append(bkg_cat_folder + '/' + bkg)
 
-        print '-------------------------------------------------'
-        #print 'XGB INFO: Loading training signals...'
-        for sig in sig_list: print 'XGB INFO: Adding signal sample: ', sig
+        print('-------------------------------------------------')
+        for sig in sig_list: print('XGB INFO: Adding signal sample: ', sig)
         #TODO put this to the config
-        for data in tqdm(read_root(sorted(sig_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize), desc='XGB INFO: Loading training signals', ncols=100):
+        for data in tqdm(read_root(sorted(sig_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize), desc='XGB INFO: Loading training signals', ncols=90):
             data = self.preselect(data, 'signal')
             self.m_data_sig = self.m_data_sig.append(data, ignore_index=True)
 
-        print '----------------------------------------------------------'
-        #print 'XGB INFO: Loading training backgrounds...'
-        for bkg in bkg_list: print 'XGB INFO: Adding background sample: ', bkg
+        print('----------------------------------------------------------')
+        for bkg in bkg_list: print('XGB INFO: Adding background sample: ', bkg)
         #TODO put this to the config
-        for data in tqdm(read_root(sorted(bkg_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize), desc='XGB INFO: Loading training backgrounds', ncols=100):
+        for data in tqdm(read_root(sorted(bkg_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize), desc='XGB INFO: Loading training backgrounds', ncols=90):
             data = self.preselect(data, 'background')
             self.m_data_bkg = self.m_data_bkg.append(data, ignore_index=True)
 
     def train(self, fold=0):
 
         # training, validation, test split
-        print '----------------------------------------------------------'
-        print 'XGB INFO: Splitting samples to training, validation, and test...'
+        print('----------------------------------------------------------')
+        print('XGB INFO: Splitting samples to training, validation, and test...')
         test_sig = self.m_data_sig[self.m_data_sig[self.randomIndex]%4 == fold]
         test_bkg = self.m_data_bkg[self.m_data_bkg[self.randomIndex]%4 == fold]
         val_sig = self.m_data_sig[(self.m_data_sig[self.randomIndex]-1)%4 == fold]
@@ -230,10 +228,10 @@ class XGBoostHandler(object):
             ['Background', len(train_bkg)+len(val_bkg), len(train_bkg), len(val_bkg)],
         ]
 
-        print tabulate(sample_size_table, headers=headers, tablefmt='simple')
+        print(tabulate(sample_size_table, headers=headers, tablefmt='simple'))
 
         # setup the training data set
-        print 'XGB INFO: Setting the training arrays...'
+        print('XGB INFO: Setting the training arrays...')
         x_test_sig = test_sig[self.train_variables]
         x_test_bkg = test_bkg[self.train_variables]
         x_val_sig = val_sig[self.train_variables]
@@ -246,7 +244,7 @@ class XGBoostHandler(object):
         x_test = pd.concat([x_test_sig, x_test_bkg])
 
         # setup the weights
-        print 'XGB INFO: Setting the event weights...'
+        print('XGB INFO: Setting the event weights...')
 
         if self.SF == -1: self.SF = 1.*len(train_sig_wt)/len(train_bkg_wt)
 
@@ -262,13 +260,13 @@ class XGBoostHandler(object):
         self.m_test_wt[fold] = pd.concat([test_sig_wt, test_bkg_wt]).to_numpy()
 
         # setup the truth labels
-        print 'XGB INFO: Signal labeled as one; background labeled as zero.'
+        print('XGB INFO: Signal labeled as one; background labeled as zero.')
         self.m_y_train[fold] = np.concatenate((np.ones(len(train_sig), dtype=np.uint8), np.zeros(len(train_bkg), dtype=np.uint8)))
         self.m_y_val[fold]   = np.concatenate((np.ones(len(val_sig)  , dtype=np.uint8), np.zeros(len(val_bkg)  , dtype=np.uint8)))
         self.m_y_test[fold]  = np.concatenate((np.ones(len(test_sig)  , dtype=np.uint8), np.zeros(len(test_bkg)  , dtype=np.uint8)))
         
         # construct DMatrix
-        print 'XGB INFO: Constucting D-Matrix...'
+        print('XGB INFO: Constucting D-Matrix...')
         self.m_dTrain[fold] = xgb.DMatrix(x_train, label=self.m_y_train[fold], weight=self.m_train_wt[fold])
         self.m_dVal[fold] = xgb.DMatrix(x_val, label=self.m_y_val[fold], weight=self.m_val_wt[fold])
         self.m_dTest[fold] = xgb.DMatrix(x_test)
@@ -276,13 +274,13 @@ class XGBoostHandler(object):
         self.m_dTest_bkg[fold] = xgb.DMatrix(x_test_bkg)
 
         # Get the hyperparameters
-        print 'XGB INFO: Setting the hyperparameters...'
+        print('XGB INFO: Setting the hyperparameters...')
         param = self.params[0 if len(self.params) == 1 else fold]
 
-        print 'param: ', param
+        print('param: ', param)
 
         # finally start training!!!
-        print 'XGB INFO: Start training!!!'
+        print('XGB INFO: Start training!!!')
         evallist  = [(self.m_dTrain[fold], 'train'), (self.m_dVal[fold], 'eval')]
         evals_result = {}
         eval_result_history = []
@@ -295,7 +293,7 @@ class XGBoostHandler(object):
         print('Test model.')
 
         # get scores
-        print 'XGB INFO: Computing scores for different sample sets...'
+        print('XGB INFO: Computing scores for different sample sets...')
         self.m_score_val[fold]   = self.m_bst[fold].predict(self.m_dVal[fold])
         self.m_score_test[fold]  = self.m_bst[fold].predict(self.m_dTest[fold])
         self.m_score_train[fold] = self.m_bst[fold].predict(self.m_dTrain[fold])
@@ -342,13 +340,13 @@ class XGBoostHandler(object):
     def plotROC(self, fold=0, save=True, show=False):
     
         fpr_train, tpr_train, _ = roc_curve(self.m_y_train[fold], self.m_score_train[fold], sample_weight=self.m_train_wt[fold])
-        tpr_train, fpr_train = np.array(zip(*sorted(zip(tpr_train, fpr_train))))
+        tpr_train, fpr_train = np.array(list(zip(*sorted(zip(tpr_train, fpr_train)))))
         roc_auc_train = 1 - auc(tpr_train, fpr_train)
         fpr_val, tpr_val, _ = roc_curve(self.m_y_val[fold], self.m_score_val[fold], sample_weight=self.m_val_wt[fold])
-        tpr_val, fpr_val = np.array(zip(*sorted(zip(tpr_val, fpr_val))))
+        tpr_val, fpr_val = np.array(list(zip(*sorted(zip(tpr_val, fpr_val)))))
         roc_auc_val = 1 - auc(tpr_val, fpr_val)
         fpr_test, tpr_test, _ = roc_curve(self.m_y_test[fold], self.m_score_test[fold], sample_weight=self.m_test_wt[fold])
-        tpr_test, fpr_test = np.array(zip(*sorted(zip(tpr_test, fpr_test))))
+        tpr_test, fpr_test = np.array(list(zip(*sorted(zip(tpr_test, fpr_test)))))
         roc_auc_test = 1 - auc(tpr_test, fpr_test)
 
         fnr_train = 1.0 - fpr_train
@@ -392,14 +390,14 @@ class XGBoostHandler(object):
         elif sample_set == 'test':
             fpr, tpr, _ = roc_curve(self.m_y_test[fold], self.m_score_test[fold], sample_weight=self.m_test_wt[fold])
 
-        tpr, fpr = np.array(zip(*sorted(zip(tpr, fpr))))
+        tpr, fpr = np.array(list(zip(*sorted(zip(tpr, fpr)))))
         roc_auc = 1 - auc(tpr, fpr)
 
         return self.params[0 if len(self.params) == 1 else fold], roc_auc
 
     def transformScore(self, fold=0, sample='sig'):
 
-        print 'XGB INFO: transforming scores based on {sample}'.format(sample=sample)
+        print(f'XGB INFO: transforming scores based on {sample}')
         # transform the scores
         self.m_tsf[fold] = QuantileTransformer(n_quantiles=1000, output_distribution='uniform', subsample=1000000000, random_state=0)
         #plt.hist(score_test_sig, bins='auto')
@@ -441,14 +439,14 @@ def main():
     # looping over the "4 folds"
     for i in args.fold:
 
-        print '==================================================='
-        print ' The #%d fold of training' %i
-        print '==================================================='
+        print('===================================================')
+        print(f' The #{i} fold of training')
+        print('===================================================')
 
         #xgb.setParams({'eval_metric': ['auc', 'logloss']}, i)
         xgb.set_early_stopping_rounds(20)
         xgb.train(i)
-        print("param: %s, Val AUC: %s" % xgb.getAUC(i))
+        print("param: %s, Val AUC: %f" % xgb.getAUC(i))
 
         #xgb.plotScore(i, 'test')
         xgb.plotFeaturesImportance(i)
@@ -458,8 +456,8 @@ def main():
 
         if args.save: xgb.save(i)
 
-    print '------------------------------------------------------------------------------'
-    print 'Finished training.'
+    print('------------------------------------------------------------------------------')
+    print('Finished training.')
 
     return
 

@@ -1,14 +1,16 @@
-# setup environment
-setupATLAS
-lsetup "root  6.12.06-x86_64-slc6-gcc62-opt"
-lsetup python
-virtualenv --python=python2.7 ve
-source ve/bin/activate
+# create environment from the `environment.yml`
+conda env create -f environment.yml
+conda activate hmumuml
+
+# create virtual environment
+#conda create -n hmumuml python=3.7 # --clone base
+#conda activate hmumuml
 
 # install packages
-pip install pip --upgrade
-pip install h5py sklearn matplotlib tabulate xgboost pandas root_pandas tqdm
-pip install --upgrade https://github.com/rootpy/root_numpy/zipball/master
+#conda config --add channels conda-forge
+#conda config --add channels anaconda
+#conda install root root_numpy
+#conda install h5py scikit-learn matplotlib tabulate xgboost pandas root_pandas tqdm
 
 # setting python path
 export PATH="`pwd`/scripts:${PATH}"

@@ -18,7 +18,7 @@ def getArgs():
     parser.add_argument('-i', '--inputFolder', action='store', default='outputs', help='directory of files containing BDT scores')
     parser.add_argument('-o', '--outputFolder', action='store', default='fitInputs', help='directory for outputs containing category indeces')
     parser.add_argument('-r', '--region', action='store', choices=['two_jet', 'one_jet', 'zero_jet', 'all_jet'], default='zero_jet', help='Region to process')
-    parser.add_argument('-b', '--nbin', type = int, default = 3, choices = [1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16], help = 'number of BDT bins.')
+    parser.add_argument('-b', '--nbin', type = int, default = 4, choices = [1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16], help = 'number of BDT bins.')
     parser.add_argument('-v', '--vbf', type = int, default = 0, choices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16], help = 'number of VBF bins.')
     return parser.parse_args()
 
@@ -27,9 +27,9 @@ class ApplyXGBHandler(object):
 
     def __init__(self, configPath, region=''):
 
-        print '==============================='
-        print '  ApplyXGBHandler initialized'
-        print '==============================='
+        print('===============================')
+        print('  ApplyXGBHandler initialized')
+        print('===============================')
 
         self._region = region
         self._inputFolder = ''
@@ -88,7 +88,7 @@ class ApplyXGBHandler(object):
         f_list = []
         input_path = self._inputFolder + '/' + self._region + '/%s.root' % category
 
-        for data in tqdm(read_root(input_path, key=self._inputTree, chunksize=self._chunksize), desc='XGB INFO: Assigning category index to %s samples' % category):
+        for data in tqdm(read_root(input_path, key=self._inputTree, chunksize=self._chunksize), desc='XGB INFO: Assigning category index to %s samples' % category, ncols=100):
 
             out_data = pd.DataFrame()
 

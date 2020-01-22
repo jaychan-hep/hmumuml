@@ -32,9 +32,9 @@ class ApplyXGBHandler(object):
 
     def __init__(self, configPath, region=''):
 
-        print '==============================='
-        print '  ApplyXGBHandler initialized'
-        print '==============================='
+        print('===============================')
+        print('  ApplyXGBHandler initialized')
+        print('===============================')
 
         self._region = region
         self._inputFolder = ''
@@ -157,7 +157,7 @@ class ApplyXGBHandler(object):
 
         if self.models:
             for model in self.models:
-                print 'XGB INFO: Loading BDT model: ', model
+                print('XGB INFO: Loading BDT model: ', model)
                 self.m_models[model] = []
                 for i in range(4):
                     bst = xgb.Booster()
@@ -169,7 +169,7 @@ class ApplyXGBHandler(object):
         
         if self.models:
             for model in self.models:
-                print 'XGB INFO: Loading score transformer for model: ', model
+                print('XGB INFO: Loading score transformer for model: ', model)
                 self.m_tsfs[model] = []
                 for i in range(4):
                     tsf = pickle.load(open('%s/tsf_%s_%d.pkl'%(self._modelFolder, model, i), "rb" ) )
@@ -187,8 +187,8 @@ class ApplyXGBHandler(object):
         for f in os.listdir(cat_folder):
             if f.endswith('.root'): f_list.append(cat_folder + '/' + f)
 
-        print '-------------------------------------------------'
-        for f in f_list: print 'XGB INFO: Including sample: ', f
+        print('-------------------------------------------------')
+        for f in f_list: print('XGB INFO: Including sample: ', f)
 
         #TODO put this to the config
         for data in tqdm(read_root(sorted(f_list), key=self._inputTree, columns=self._branches, chunksize=self._chunksize), ncols=100, desc='XGB INFO: Applying BDTs to %s samples' % category):
@@ -214,7 +214,7 @@ class ApplyXGBHandler(object):
 
             out_data.to_root(output_path, key='test', mode='a', index=False)
 
-            del out_data
+            del out_data, data_s, data_o
 
 def main():
 
