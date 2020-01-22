@@ -12,7 +12,7 @@
 import os
 import math
 from argparse import ArgumentParser
-from ROOT import *
+from ROOT import Math, TVector2
 import numpy as np
 #import time
 import pandas as pd

@@ -3,7 +3,7 @@
 import os
 from datetime import datetime
 from argparse import ArgumentParser
-from condor import condor_booklist
+from condor import condor_booklist, createScript
 import json
 
 def getArgs():
@@ -27,6 +27,35 @@ def main():
 
     args=getArgs()
     inputdir = args.inputdir
+
+    CONDA_PREFIX = os.getenv("CONDA_PREFIX").replace("/envs/hmumuml", "")
+
+    createScript('scripts/submit_skim_ntuples.sh', f"""#!/bin/bash
+
+initdir=$1
+input=$2
+output=$3
+
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('{CONDA_PREFIX}/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "{CONDA_PREFIX}/etc/profile.d/conda.sh" ]; then
+        . "{CONDA_PREFIX}/etc/profile.d/conda.sh"
+    else
+        export PATH="{CONDA_PREFIX}/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
+cd $initdir
+source scripts/setup.sh
+echo python scripts/skim_ntuples.py -i $input -o $output
+python scripts/skim_ntuples.py -i $input -o $output
+        """)
 
     with open('data/inputs_config.json') as f:
         config = json.load(f)
