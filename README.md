@@ -4,6 +4,8 @@ HmumuML is a package that can be used to study the XGBoost BDT categorization in
 
 ## Setup
 
+This project requires to use python3 and the conda environment. Please install the Anaconda or Miniconda before setting up the environment for this project.
+
 ### First time setup on lxplus
 
 First checkout the code:

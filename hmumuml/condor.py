@@ -27,7 +27,7 @@ class condor_booklist(object):
         self.OnExitRemove = True
         self.JobFlavour = 'tomorrow'
         self.JobType = JobType
-        self.AccountingGroup = ''
+        self.AccountingGroup = 'group_u_ATLASWISC.all'
         self.RequestCpus = 1
         self.Arguments = []
         self.initialdir_argument = False
@@ -97,34 +97,34 @@ class condor_booklist(object):
         self.initialdir_argument = True
 
     def summary(self,keyword=''):
-        print '----------Condor Booklist Sumary----------'
+        print('----------Condor Booklist Sumary----------')
         if not keyword or keyword == 'Basic' or keyword == 'Executable':
-            print 'Executable:          {Executable}'.format(Executable = self.Executable)
+            print('Executable:          {Executable}'.format(Executable = self.Executable))
         if not keyword or keyword == 'Basic' or keyword == 'Executable' or keyword == 'initialdir':
-            print 'Initial directory:   {initialdir}'.format(initialdir = self.initialdir)
+            print('Initial directory:   {initialdir}'.format(initialdir = self.initialdir))
         if not keyword or keyword == 'Basic' or keyword == 'JobType':
-            print 'Job type:            {JobType}'.format(JobType = self.JobType)
+            print('Job type:            {JobType}'.format(JobType = self.JobType))
         if not keyword or keyword == 'Basic' or keyword == 'JobType' or keyword == 'JobName' and self.JobName:
-            print 'Job name:            {JobName}'.format(JobName = self.JobName)
+            print('Job name:            {JobName}'.format(JobName = self.JobName))
         if not keyword or keyword == 'Basic' or keyword == 'JobFlavour':
-            print 'Job Favour:          {JobFlavour}'.format(JobFlavour = self.JobFlavour)
+            print('Job Favour:          {JobFlavour}'.format(JobFlavour = self.JobFlavour))
         if not keyword or keyword == 'Basic' or keyword == 'Arguments' and self.Arguments:
-            print '-----Arguments-----'
+            print('-----Arguments-----')
             for argument in self.Arguments:
-                print argument
-            print '----------------'
-        print '------------------------------------------'
+                print(argument)
+            print('----------------')
+        print('------------------------------------------')
 
     def submit(self, with_arguments = True):
 
         if not self.Executable:
-            print 'ERROR: executable is not specified!!'
+            print('ERROR: executable is not specified!!')
             quit()
 
         if not self.Arguments:
             if not with_arguments: Self.Arguments.Append(' ')
             else:
-                print 'WARNING: no jobs are added. Will not submit any job.'
+                print('WARNING: no jobs are added. Will not submit any job.')
                 return
 
         date = datetime.now().strftime("%Y-%m-%d-%H-%M")        
@@ -161,11 +161,11 @@ class condor_booklist(object):
         command = "chmod +x " + jdlFile
         os.system(command)
         if jdlFile == None:
-            print "JDL is None\n"
+            print("JDL is None\n")
             sys.exit(1)
 
         command = "condor_submit " + jdlFile
-        print command
+        print(command)
         os.system(command)
 
         return

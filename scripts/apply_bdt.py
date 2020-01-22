@@ -214,7 +214,7 @@ class ApplyXGBHandler(object):
 
             out_data.to_root(output_path, key='test', mode='a', index=False)
 
-            del out_data
+            del out_data, data_s, data_o
 
 def main():
 
