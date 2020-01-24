@@ -199,14 +199,14 @@ class XGBoostHandler(object):
         print('-------------------------------------------------')
         for sig in sig_list: print('XGB INFO: Adding signal sample: ', sig)
         #TODO put this to the config
-        for data in tqdm(read_root(sorted(sig_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize), desc='XGB INFO: Loading training signals', ncols=90):
+        for data in tqdm(read_root(sorted(sig_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize), desc='XGB INFO: Loading training signals', bar_format='{desc}: {percentage:3.0f}%|{bar:20}{r_bar}'):
             data = self.preselect(data, 'signal')
             self.m_data_sig = self.m_data_sig.append(data, ignore_index=True)
 
         print('----------------------------------------------------------')
         for bkg in bkg_list: print('XGB INFO: Adding background sample: ', bkg)
         #TODO put this to the config
-        for data in tqdm(read_root(sorted(bkg_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize), desc='XGB INFO: Loading training backgrounds', ncols=90):
+        for data in tqdm(read_root(sorted(bkg_list), key=self.inputTree, columns=self._branches, chunksize=self._chunksize), desc='XGB INFO: Loading training backgrounds', bar_format='{desc}: {percentage:3.0f}%|{bar:20}{r_bar}'):
             data = self.preselect(data, 'background')
             self.m_data_bkg = self.m_data_bkg.append(data, ignore_index=True)
 
