@@ -107,7 +107,7 @@ def main():
     initial_events = 0
     final_events = 0
 
-    for data in tqdm(read_root(args.input, key='DiMuonNtuple', columns=variables, chunksize=args.chunksize), desc='Processing %s' % args.input, ncols=100):
+    for data in tqdm(read_root(args.input, key='DiMuonNtuple', columns=variables, chunksize=args.chunksize), desc='Processing %s' % args.input, bar_format='{desc}: {percentage:3.0f}%|{bar:20}{r_bar}'):
 
         initial_events += data.shape[0]
         #data = preprocess(data)

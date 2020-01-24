@@ -88,7 +88,7 @@ class ApplyXGBHandler(object):
         f_list = []
         input_path = self._inputFolder + '/' + self._region + '/%s.root' % category
 
-        for data in tqdm(read_root(input_path, key=self._inputTree, chunksize=self._chunksize), desc='XGB INFO: Assigning category index to %s samples' % category, ncols=100):
+        for data in tqdm(read_root(input_path, key=self._inputTree, chunksize=self._chunksize), desc='XGB INFO: Assigning category index to %s samples' % category, bar_format='{desc}: {percentage:3.0f}%|{bar:20}{r_bar}'):
 
             out_data = pd.DataFrame()
 

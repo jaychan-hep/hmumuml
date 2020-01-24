@@ -172,7 +172,7 @@ class ApplyXGBHandler(object):
                 print('XGB INFO: Loading score transformer for model: ', model)
                 self.m_tsfs[model] = []
                 for i in range(4):
-                    tsf = pickle.load(open('%s/tsf_%s_%d.pkl'%(self._modelFolder, model, i), "rb" ) )
+                    tsf = pickle.load(open('%s/tsf_%s_%d.pkl'%(self._modelFolder, model, i), "rb" ), encoding = 'latin1' )
                     self.m_tsfs[model].append(tsf)
 
     def applyBDT(self, category, scale=1):
@@ -191,7 +191,7 @@ class ApplyXGBHandler(object):
         for f in f_list: print('XGB INFO: Including sample: ', f)
 
         #TODO put this to the config
-        for data in tqdm(read_root(sorted(f_list), key=self._inputTree, columns=self._branches, chunksize=self._chunksize), ncols=100, desc='XGB INFO: Applying BDTs to %s samples' % category):
+        for data in tqdm(read_root(sorted(f_list), key=self._inputTree, columns=self._branches, chunksize=self._chunksize), bar_format='{desc}: {percentage:3.0f}%|{bar:20}{r_bar}', desc='XGB INFO: Applying BDTs to %s samples' % category):
             data = self.preselect(data)
 
             out_data = pd.DataFrame()

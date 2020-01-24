@@ -155,7 +155,7 @@ class categorizer(object):
         l_edge = hist.GetLowEdge()
         r_edge = hist.GetHighEdge()
 
-        h_merge_list = TList()
+        h_merge_list = ROOT.TList()
 
         if bl != 1:
             h_left = hist.to_TH1F('h_left', 1, bl-1)
