@@ -39,7 +39,7 @@ def arrange_cmd(channel,category,inputdir, skip, pattern):
             t12 = f1.Get('two_jet')
 
             try:
-                if (t0.GetEntries("(PassesDiMuonSelection == 1) && (PassesttHSelection == 0) && (PassesVHSelection == 0) && Muons_PT_Sub > 15 && Muons_Minv_MuMu_OnlyNearFsr >= 110 && SampleOverlapWeight && EventWeight_MCCleaning_5") == t1.GetEntries()) and (t1.GetEntries() == t10.GetEntries() + t11.GetEntries() + t12.GetEntries()):
+                if (t0.GetEntries("Muons_Minv_MuMu_OnlyNearFsr >= 110 && Event_Paper_Category > 0") == t1.GetEntries()) and (t1.GetEntries() == t10.GetEntries() + t11.GetEntries() + t12.GetEntries()):
                         continue
                 else:
                     print("Events after desired selections don't match!! Please check!! Removing the skimmed file...")

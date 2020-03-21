@@ -20,7 +20,7 @@ def getArgs():
     """Get arguments from command line."""
     parser = ArgumentParser()
     parser.add_argument('-m', '--mode', action='store', choices=['inclusive', 'per_category', 'per_process'], default='inclusive', help='run mode')
-    parser.add_argument('--categorization', action='store', choices=['Event_XGB_16_Category', 'Event_XGB_QG_16_Category'], default='Event_XGB_16_Category', help='categorization')
+    parser.add_argument('--categorization', action='store', choices=['Event_XGB_16_Category', 'Event_XGB_QG_16_Category'], default='Event_XGB_QG_16_Category', help='categorization')
     return parser.parse_args()
 
 def Leg(hists, x0, y1):
