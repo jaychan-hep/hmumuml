@@ -59,7 +59,7 @@ def compute_QG(x):
 
 def preselect(data):
 
-    data.query('Muons_Minv_MuMu_OnlyNearFsr >= 110', inplace=True)
+    data.query('(Muons_Minv_MuMu_Paper >= 110) | (Event_Paper_Category >= 17)', inplace=True)
     data.query('Event_Paper_Category > 0', inplace=True)
 
     return data
@@ -78,7 +78,7 @@ def decorate(data):
     data['DeltaPhi_mumujj'] = data.apply(lambda x: compute_Delta_Phi(x, 'Jets_Phi_jj', min_jet=2), axis=1)
     data['DeltaPhi_mumuMET'] = data.apply(lambda x: compute_Delta_Phi(x, 'Event_MET_Phi'), axis=1)
 
-    data.rename(columns={'Muons_Minv_MuMu_OnlyNearFsr': 'm_mumu', 'EventInfo_EventNumber': 'eventNumber', 'Jets_jetMultip': 'n_j'}, inplace=True)
+    data.rename(columns={'Muons_Minv_MuMu_Paper': 'm_mumu', 'Muons_Minv_MuMu_VH': 'm_mumu_VH', 'EventInfo_EventNumber': 'eventNumber', 'Jets_jetMultip': 'n_j'}, inplace=True)
     data.drop(['PassesttHSelection', 'PassesVHSelection', 'GlobalWeight', 'SampleOverlapWeight', 'EventWeight_MCCleaning_5'], axis=1, inplace=True)
     data = data.astype(float)
     data = data.astype({"n_j": int, 'eventNumber': int, 'Jets_QGscore_Lead': int, 'Jets_QGflag_Lead': int, 'Jets_QGscore_Sub': int, 'Jets_QGflag_Sub': int, 'Jets_NTracks_Lead': int, 'Jets_NTracks_Sub': int})
@@ -91,7 +91,7 @@ def main():
     args = getArgs()
 
     variables = ['EventInfo_EventNumber', 'PassesDiMuonSelection', 'PassesttHSelection', 'PassesVHSelection', 'Event_Paper_Category',
-                 'Muons_{Minv_MuMu_OnlyNearFsr,CosThetaStar}', 'Muons_*_{Lead,Sub}', 'Z_*OnlyNearFsr', 'Jets_jetMultip', 'Jets_{PT,Eta,Phi,E,NTracks,TracksWidth,QGTag_BDTScore}_{Lead,Sub}', 'Jets_{PT,Eta,Phi,Minv}_jj', 'Event_MET', 'Event_MET_Phi', 'Event_Ht',
+                 'Muons_{Minv_MuMu_Paper,Minv_MuMu_VH,CosThetaStar}', 'Muons_*_{Lead,Sub}', 'Z_*OnlyNearFsr', 'Jets_jetMultip', 'Jets_{PT,Eta,Phi,E,NTracks,TracksWidth,QGTag_BDTScore}_{Lead,Sub}', 'Jets_{PT,Eta,Phi,Minv}_jj', 'Event_MET', 'Event_MET_Phi', 'Event_Ht',
                  'GlobalWeight', 'SampleOverlapWeight', 'EventWeight_MCCleaning_5',
                  'ClassOut_XGB_*', 'Event_XGB_*Category',
                  ]
@@ -108,13 +108,15 @@ def main():
         data = preselect(data) #TODO add cutflow
         data = decorate(data)
         final_events += data.shape[0]
-        data_zero_jet = data[data.n_j == 0]
-        data_one_jet = data[data.n_j == 1]
-        data_two_jet = data[data.n_j >= 2]
+        data_zero_jet = data[(data.n_j == 0) & (data.Event_Paper_Category <= 16)]
+        data_one_jet = data[(data.n_j == 1) & (data.Event_Paper_Category <= 16)]
+        data_two_jet = data[(data.n_j >= 2) & (data.Event_Paper_Category <= 16)]
+        data_VH_ttH =  data[data.Event_Paper_Category >= 17]
         data.to_root(args.output, key='inclusive', mode='a', index=False)
         data_zero_jet.to_root(args.output, key='zero_jet', mode='a', index=False)
         data_one_jet.to_root(args.output, key='one_jet', mode='a', index=False)
         data_two_jet.to_root(args.output, key='two_jet', mode='a', index=False)
+        data_VH_ttH.to_root(args.output, key='VH_ttH', mode='a', index=False)
 
     meta_data = pd.DataFrame({'initial_events': [initial_events], 'final_events': [final_events]})
     meta_data.to_root(args.output, key='MetaData', mode='a', index=False)
