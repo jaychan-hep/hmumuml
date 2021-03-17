@@ -14,7 +14,7 @@ def createScript(path, script):
 
     dir_path = os.path.dirname(path)
 
-    if not os.path.isdir(dir_path):
+    if dir_path and not os.path.isdir(dir_path):
         os.makedirs(dir_path)
 
     file = open(path, "w")

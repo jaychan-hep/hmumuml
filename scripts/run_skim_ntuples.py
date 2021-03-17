@@ -37,9 +37,10 @@ def arrange_cmd(channel,category,inputdir, skip, pattern):
             t10 = f1.Get('zero_jet')
             t11 = f1.Get('one_jet')
             t12 = f1.Get('two_jet')
+            t13 = f1.Get('VH_ttH')
 
             try:
-                if (t0.GetEntries("Muons_Minv_MuMu_OnlyNearFsr >= 110 && Event_Paper_Category > 0") == t1.GetEntries()) and (t1.GetEntries() == t10.GetEntries() + t11.GetEntries() + t12.GetEntries()):
+                if (t0.GetEntries("(Muons_Minv_MuMu_Paper >= 110 || Event_Paper_Category >= 17) && Event_Paper_Category > 0") == t1.GetEntries()) and (t1.GetEntries() == t10.GetEntries() + t11.GetEntries() + t12.GetEntries() +t13.GetEntries()):
                         continue
                 else:
                     print("Events after desired selections don't match!! Please check!! Removing the skimmed file...")
