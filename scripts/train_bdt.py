@@ -31,6 +31,8 @@ def getArgs():
     parser.add_argument('-p', '--params', action='store', type=dict, default=None, help='json string.') #type=json.loads
     parser.add_argument('--save', action='store_true', help='Save model weights to HDF5 file')
     parser.add_argument('--roc', action='store_true', help='Plot ROC')
+    parser.add_argument('--skopt', action='store_true', default=False, help='Run hyperparameter tuning using skopt')
+    parser.add_argument('--skopt-plot', action='store_true', default=False, help='Plot skopt results')
     return parser.parse_args()
 
 class XGBoostHandler(object):
@@ -210,7 +212,7 @@ class XGBoostHandler(object):
             data = self.preselect(data, 'background')
             self.m_data_bkg = self.m_data_bkg.append(data, ignore_index=True)
 
-    def train(self, fold=0):
+    def prepareData(self, fold=0):
 
         # training, validation, test split
         print('----------------------------------------------------------')
@@ -273,10 +275,11 @@ class XGBoostHandler(object):
         self.m_dTest_sig[fold] = xgb.DMatrix(x_test_sig)
         self.m_dTest_bkg[fold] = xgb.DMatrix(x_test_bkg)
 
-        # Get the hyperparameters
-        print('XGB INFO: Setting the hyperparameters...')
-        param = self.params[0 if len(self.params) == 1 else fold]
+    def trainModel(self, fold, param=None):
 
+        if not param:
+            print('XGB INFO: Setting the hyperparameters...')
+            param = self.params[0 if len(self.params) == 1 else fold]
         print('param: ', param)
 
         # finally start training!!!
@@ -289,9 +292,7 @@ class XGBoostHandler(object):
         except KeyboardInterrupt:
             print('Finishing on SIGINT.')
 
-        # test model
-        print('Test model.')
-
+    def testModel(self, fold):
         # get scores
         print('XGB INFO: Computing scores for different sample sets...')
         self.m_score_val[fold]   = self.m_bst[fold].predict(self.m_dVal[fold])
@@ -421,6 +422,149 @@ class XGBoostHandler(object):
         if fold in self.m_tsf.keys(): 
             with open('%s/tsf_%s_%d.pkl' %(self._outputFolder, self._region, fold), 'wb') as f:
                 pickle.dump(self.m_tsf[fold], f, -1)
+
+    def skoptHP(self, fold):
+
+        import skopt
+        from skopt import dump
+        from skopt import Optimizer
+        from skopt import gbrt_minimize, gp_minimize
+        from skopt.utils import use_named_args
+        from skopt.space import Real, Categorical, Integer
+
+        print ('default param: ', self._region, fold, self.params[fold])
+
+        search_space = [Real(0.3, 0.7, name='alpha'),
+                Real(0.4, 1, name='colsample_bytree'),
+                Real(0, 10, name='gamma'),
+                Real(5, 20, name='max_delta_step'),
+                Integer(4, 100, name='min_child_weight'),
+                Real(0.7, 1, name='subsample'),
+                Real(0.01, 0.4, name='eta'),
+                Integer(200, 400, name='max_bin'),
+                Integer(5, 20, name='max_depth'),
+        ]
+
+        def objective(param):
+
+            self.setParams(param, fold)
+            # self.setParams({'eval_metric': ['auc']}, fold)
+            self.trainModel(fold, self.params[fold])
+            self.testModel(fold)
+            auc = self.getAUC(fold)[-1]
+            return -auc
+
+        search_names = [var.name for var in search_space]
+
+        opt = Optimizer(search_space, # TODO: Add noise
+                    n_initial_points=10,
+                    acq_optimizer_kwargs={'n_jobs':4})
+
+        n_calls = 20
+        exp_dir = 'models/skopt/'
+
+        if not os.path.exists(exp_dir):
+            os.makedirs(exp_dir)
+
+        for i in range(n_calls):
+
+            sampled_point = opt.ask()
+            param = dict(zip(search_names, sampled_point))
+            # param = {key.decode(): val for key, val in param.items()}
+            print('Point:', i+1, param)
+            f_val = objective(param)
+            print ('AUC:', -f_val)
+            opt_result = opt.tell(sampled_point, f_val)
+
+            with open(exp_dir + 'optimizer_region_'+self._region+'_fold'+str(fold) + '.pkl', 'wb') as fp:
+                
+                dump(opt, fp)
+
+            with open(exp_dir + 'results_region_'+self._region+'_fold'+str(fold) + '.pkl', 'wb') as fp:
+                # Delete objective function before saving. To be used when results have been loaded,
+                # the objective function must then be imported from this script.
+
+                if opt_result.specs is not None:
+
+                    if 'func' in opt_result.specs['args']:
+                        res_without_func = copy.deepcopy(opt_result)
+                        del res_without_func.specs['args']['func']
+                        dump(res_without_func, fp)
+                    else:
+                        dump(opt_result, fp)
+
+                else:
+
+                    dump(opt_result, fp)
+
+        print(opt_result)
+
+        opt_result_x = [float(i) for i in opt_result.x]
+        param = dict(zip(search_names, opt_result_x))
+        self.setParams(param, fold)
+
+        with open(exp_dir + 'results_region_'+self._region+'_fold'+str(fold) + '.json', 'w') as fp:
+
+            json.dump(self.params[fold], fp)
+            print('Save to ', exp_dir + 'results_region_'+self._region+'_fold'+str(fold) + '.json')
+
+
+    def skoptPlot(self, fold):
+
+        from skopt import load
+        from skopt.plots import plot_objective, plot_evaluations, plot_convergence
+
+        plt.switch_backend('agg') # For outputting plots when running on a server
+        plt.ioff() # Turn off interactive mode, so that figures are only saved, not displayed
+        plt.style.use('seaborn-paper')
+        font_size = 9
+        label_font_size = 8
+
+        plt.rcParams.update({'font.size'        : font_size,
+                 'axes.titlesize'   : font_size,
+                 'axes.labelsize'   : font_size,
+                 'xtick.labelsize'  : label_font_size,
+                 'ytick.labelsize'  : label_font_size,
+                 'figure.figsize'   : (5,4)}) # w,h
+
+        exp_dir = 'models/skopt/'
+        fig_dir = 'plots/skopt/figures/region_'+self._region+'_fold'+str(fold)+'/'
+
+        if not os.path.exists(fig_dir):
+            os.makedirs(fig_dir)
+
+        # Plots expect default rcParams
+        plt.rcdefaults()
+
+        # Load results
+        res_loaded = load(exp_dir + 'results_region_'+self._region+'_fold'+str(fold) + '.pkl')
+        print(res_loaded)
+
+        # Plot evaluations
+        fig,ax = plt.subplots()
+        ax = plot_evaluations(res_loaded)
+        plt.tight_layout()
+        plt.savefig(fig_dir + 'evaluations.pdf')
+
+        # Plot objective
+        fig,ax = plt.subplots()
+        ax = plot_objective(res_loaded)
+        plt.tight_layout()
+        plt.savefig(fig_dir + 'objective.pdf')
+
+        # Plot convergence
+        fig,ax = plt.subplots()
+        ax = plot_convergence(res_loaded)
+        plt.tight_layout()
+        plt.savefig(fig_dir + 'convergence.pdf')
+
+        ## Plot regret
+        #fig,ax = plt.subplots()
+        #ax = plot_regret(res_loaded)
+        #plt.tight_layout()
+        #plt.savefig(fig_dir + 'regret.pdf')
+
+        print ('Saved skopt figures in ' + fig_dir)
         
 
 def main():
@@ -429,6 +573,11 @@ def main():
     
     configPath = args.config
     xgb = XGBoostHandler(configPath, args.region)
+
+    if args.skopt_plot: 
+        for i in args.fold:
+            xgb.skoptPlot(i)
+        return
 
     if args.inputFolder: xgb.setInputFolder(args.inputFolder)
     if args.outputFolder: xgb.setOutputFolder(args.outputFolder)
@@ -445,7 +594,19 @@ def main():
 
         #xgb.setParams({'eval_metric': ['auc', 'logloss']}, i)
         xgb.set_early_stopping_rounds(20)
-        xgb.train(i)
+
+        xgb.prepareData(i)
+
+        if args.skopt: 
+            try:
+                xgb.skoptHP(i)
+            except KeyboardInterrupt:
+                print('Finishing on SIGINT.')
+            continue
+
+        xgb.trainModel(i)
+
+        xgb.testModel(i)
         print("param: %s, Val AUC: %f" % xgb.getAUC(i))
 
         #xgb.plotScore(i, 'test')
