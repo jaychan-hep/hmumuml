@@ -42,6 +42,8 @@ class condor_booklist(object):
         self.JobType = JobType
         self.AccountingGroup = 'group_u_ATLASWISC.all'
         self.RequestCpus = 1
+        self.Request_memory = "2000 MB"
+        self.Request_disk = "1 KB"
         self.Arguments = []
         self.initialdir_argument = False
         self.JobName = JobName
@@ -90,6 +92,12 @@ class condor_booklist(object):
 
     def set_RequestCpus(self, RequestCpus):
         self.RequestCpus = RequestCpus
+
+    def set_Request_memory(self, Request_memory):
+        self.Request_memory = Request_memory
+
+    def set_Request_disk(self, Request_disk):
+        self.Request_disk = Request_disk
 
     def set_JobName(self, JobName):
         self.JobName = JobName
@@ -164,6 +172,8 @@ class condor_booklist(object):
         jdl += '+JobType="{JobType}"\n'.format(JobType = self.JobType)
         if self.AccountingGroup: jdl += '+AccountingGroup ="{AccountingGroup}"\n'.format(AccountingGroup = self.AccountingGroup)
         jdl += "RequestCpus = {RequestCpus}\n".format(RequestCpus = self.RequestCpus)
+        jdl += "Request_memory = {Request_memory}\n".format(Request_memory = self.Request_memory)
+        jdl += "Request_disk = {Request_disk}\n".format(Request_disk = self.Request_disk)
         for Argument in self.Arguments:
             jdl += "Arguments = {initialdir} {Argument} \nQueue \n".format(initialdir = self.initialdir if self.initialdir_argument else '', Argument = Argument)
 
