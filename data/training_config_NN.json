@@ -1,0 +1,51 @@
+{"common":   {"train_signal": ["ggF", "VBF"],
+              "train_background": ["Z", "ttbar", "diboson", "stop"],
+              "train_variables": ["Z_PT_OnlyNearFsr", "Z_Y_OnlyNearFsr", "Muons_CosThetaStar"],
+              "preselections": ["m_mumu >= 120", "m_mumu <= 130"],
+              "#signal_preselections": ["m_mumu >= 120", "m_mumu <= 130"],
+              "#background_preselections": ["m_mumu >= 120", "m_mumu <= 130"],
+              "randomIndex": "eventNumber", "weight": "weight"
+              },
+ "zero_jet": {"#+preselections": ["n_j == 0"],
+              "inputTree": "zero_jet",
+              "params": [{},
+                         {},
+                         {},
+                         {}
+                         ]
+              },
+ "one_jet":  {"#+preselections": ["n_j == 1"],
+              "inputTree": "one_jet",
+              "+train_variables": ["Jets_PT_Lead", "Jets_Eta_Lead", "DeltaPhi_mumuj1"],
+              "params": [{"lr": 0.004, "Bs": 5000},
+                         {"lr": 0.004, "Bs": 5000},
+                         {"lr": 0.004, "Bs": 5000},
+                         {"lr": 0.004, "Bs": 5000}
+                         ]
+              },
+ "two_jet":  {"#+preselections": ["n_j >= 2"],
+              "inputTree": "two_jet",
+              "+train_variables": ["Jets_PT_Lead", "Jets_Eta_Lead", "DeltaPhi_mumuj1",
+                                   "Jets_PT_Sub", "Jets_Eta_Sub", "DeltaPhi_mumuj2",
+                                   "Jets_PT_jj", "Jets_Y_jj", "DeltaPhi_mumujj", "Jets_Minv_jj",
+                                   "Event_MET", "noexpand:(Event_Ht-Muons_PT_Lead-Muons_PT_Sub)"],
+              "params": [{"lr": 0.0006888885529597814, "Bs": 128},
+                         {"lr": 0.0004000224681463958, "Bs": 128},
+                         {"lr": 0.0006888885529597814, "Bs": 128},
+                         {"lr": 0.0006888885529597814, "Bs": 128}
+                         ]
+              },
+ "VBF":      {"train_signal": ["VBF"],
+              "#+preselections": ["n_j >= 2"],
+              "inputTree": "two_jet",
+              "+train_variables": ["Jets_PT_Lead", "Jets_Eta_Lead", "DeltaPhi_mumuj1",
+                                   "Jets_PT_Sub", "Jets_Eta_Sub", "DeltaPhi_mumuj2",
+                                   "Jets_PT_jj", "Jets_Y_jj", "DeltaPhi_mumujj", "Jets_Minv_jj",
+                                   "Event_MET", "noexpand:(Event_Ht-Muons_PT_Lead-Muons_PT_Sub)"],
+              "params": [{"lr": 0.0004, "Bs": 128},
+                         {"lr": 0.0004, "Bs": 128},
+                         {"lr": 0.0004, "Bs": 128},
+                         {"lr": 0.0004, "Bs": 128}
+                         ]
+              }
+}

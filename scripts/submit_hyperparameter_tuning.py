@@ -10,6 +10,9 @@ def getArgs():
     """Get arguments from command line."""
     parser = ArgumentParser(description="Hyperparameter tuning.")
     parser.add_argument('-r', '--region', action='store', nargs="+", default=["zero_jet", "one_jet", "two_jet", "VBF"], help='Regions to run.')
+    parser.add_argument('-f', '--fold', action='store', type=int, nargs='+', choices=[0, 1, 2, 3], default=[0, 1, 2, 3], help='specify the fold for training')
+    parser.add_argument('-a', '--algorithm', action='store', choices=["bdt", "NN"], default="NN", help='Which ML algorithm.')
+    parser.add_argument('-m', '--mode', action='store', choices=["skopt", "config"], default="skopt", help='To optimize the hypaeparameters with skopt, or do the usual training with config')
     return  parser.parse_args()
 
 def main():
@@ -18,7 +21,7 @@ def main():
 
     CONDA_PREFIX = os.getenv("CONDA_PREFIX").replace("/envs/hmumuml", "")
 
-    createScript('scripts/submit_hyperparameter_tuning.sh', f"""#!/bin/bash
+    createScript(f'scripts/submit_hyperparameter_tuning_{args.algorithm}_{args.mode}.sh', f"""#!/bin/bash
 
 initdir=$1
 region=$2
@@ -41,20 +44,20 @@ unset __conda_setup
 
 cd $initdir
 source scripts/setup.sh
-echo python scripts/train_bdt.py -r $region -f $fold --skopt
-python scripts/train_bdt.py -r $region -f $fold --skopt
+echo python scripts/train_{args.algorithm}.py -r $region -f $fold {"--skopt" if args.mode == "skopt" else "--save"}
+python scripts/train_{args.algorithm}.py -r $region -f $fold {"--skopt" if args.mode == "skopt" else "--save"}
         """)
 
-    condor_list = condor_booklist('scripts/submit_hyperparameter_tuning.sh', 'hyperparameter_tuning')
+    condor_list = condor_booklist(f'scripts/submit_hyperparameter_tuning_{args.algorithm}_{args.mode}.sh', 'hyperparameter_tuning')
     condor_list.initialdir_in_arguments()
-    condor_list.set_JobFlavour('testmatch')
+    condor_list.set_JobFlavour('nextweek')
     condor_list.set_RequestCpus(4)
     condor_list.set_Request_memory("10 GB")
     condor_list.set_Request_disk("1 GB")
 
     for region in args.region:
 
-        for fold in ["0", "1", "2", "3"]:
+        for fold in args.fold:
 
             condor_list.add_Argument(f"{region} {fold}")
 

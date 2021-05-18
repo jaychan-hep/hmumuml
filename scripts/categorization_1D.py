@@ -30,6 +30,7 @@ def getArgs():
     parser.add_argument('-b', '--nbin', type = int, default = 4, choices = [1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16], help = 'number of BDT bins.')
     parser.add_argument('--skip', action = 'store_true', default = False, help = 'skip the hadd part')
     parser.add_argument('--minN', type = float, default = 5, help = 'minimum number of events in mass window')
+    parser.add_argument('-v', '--variable', action = 'store', choices = ['bdt', 'NN'], default = 'bdt', help = 'MVA variable to use')
     #parser.add_argument('--val', action = 'store_true', default = False, help = 'use validation samples for categroization')
     parser.add_argument('-t', '--transform', action = 'store_true', default = True, help = 'use the transform scores for categroization')
     parser.add_argument('--floatB', action = 'store_true', default = False, help = 'Floting last boundary')
@@ -37,7 +38,7 @@ def getArgs():
     parser.add_argument('-e', '--earlystop', type = int, default = -1, help='early stopping rounds.')
     return  parser.parse_args()
 
-def gettingsig(region, boundaries, transform):
+def gettingsig(region, variable, boundaries, transform):
 
     yields = pd.DataFrame({'sig': [0.]*len(boundaries[0]),
                           'sig_err': [0.]*len(boundaries[0]),
@@ -50,7 +51,7 @@ def gettingsig(region, boundaries, transform):
 
     for category in ['sig', 'bkg', 'VBF', 'ggF']:
 
-        for data in tqdm(read_root(f'outputs/{region}/{category}.root', key='test', columns=['bdt_score%s' % ('_t' if transform else ''), 'm_mumu', 'weight', 'eventNumber'], chunksize=500000), desc=f'Loading {category}', bar_format='{desc}: {percentage:3.0f}%|{bar:20}{r_bar}'):
+        for data in tqdm(read_root(f'outputs/{region}/{category}.root', key='test', columns=[f"{variable}_score{'_t' if transform else ''}", 'm_mumu', 'weight', 'eventNumber'], chunksize=500000), desc=f'Loading {category}', bar_format='{desc}: {percentage:3.0f}%|{bar:20}{r_bar}'):
     
             if category in ['sig', 'VBF', 'ggF']:
                 data = data[(data.m_mumu >= 120) & (data.m_mumu <= 130)]
@@ -66,8 +67,8 @@ def gettingsig(region, boundaries, transform):
     
                 for j in range(len(boundaries[i])):
     
-                    data_ss = data_s[data_s['bdt_score%s' % ('_t' if transform else '')] >= boundaries[i][j]]
-                    if j != len(boundaries[i]) - 1: data_ss = data_ss[data_ss['bdt_score%s' % ('_t' if transform else '')] < boundaries[i][j+1]]
+                    data_ss = data_s[data_s[f"{variable}_score{'_t' if transform else ''}"] >= boundaries[i][j]]
+                    if j != len(boundaries[i]) - 1: data_ss = data_ss[data_ss[f"{variable}_score{'_t' if transform else ''}"] < boundaries[i][j+1]]
     
                     yields[category][j] += data_ss.w.sum()
                     yields[category+'_err'][j] = np.sqrt(yields[category+'_err'][j]**2 + (data_ss.w**2).sum())
@@ -87,7 +88,7 @@ def gettingsig(region, boundaries, transform):
 
     return z, abs(u)
 
-def categorizing(region,sigs,bkgs,nscan, minN, transform, nbin, floatB, n_fold, fold, earlystop):
+def categorizing(region, variable, sigs, bkgs, nscan, minN, transform, nbin, floatB, n_fold, fold, earlystop):
 
     f_sig = TFile('outputs/%s/sig.root' % (region))
     t_sig = f_sig.Get('test')
@@ -98,8 +99,8 @@ def categorizing(region,sigs,bkgs,nscan, minN, transform, nbin, floatB, n_fold, 
     h_sig = TH1F('h_sig','h_sig',nscan,0,1)
     h_bkg = TH1F('h_bkg','h_bkg',nscan,0,1)
 
-    t_sig.Draw("bdt_score%s>>h_sig"%('_t' if transform else ''), "weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
-    t_bkg.Draw("bdt_score%s>>h_bkg"%('_t' if transform else ''), "weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
+    t_sig.Draw(f"{variable}_score{'_t' if transform else ''}>>h_sig", "weight*%f*((m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
+    t_bkg.Draw(f"{variable}_score{'_t' if transform else ''}>>h_bkg", "weight*%f*(0.2723)*((m_mumu>=110&&m_mumu<=180)&&!(m_mumu>=120&&m_mumu<=130)&&(eventNumber%%%d!=%d))"%(n_fold/(n_fold-1.) if n_fold != 1 else 1, n_fold, fold if n_fold != 1 else 1))
 
     print('INFO: scanning all of the possibilities...')
     cgz = categorizer(h_sig, h_bkg)
@@ -138,6 +139,8 @@ def main():
 
     nscan=args.nscan
 
+    variable = args.variable
+
     if not args.skip:
         siglist=''
         for sig in sigs:
@@ -157,7 +160,7 @@ def main():
     boundaries_values=[]
     smaxs = []
     for j in range(n_fold):
-        bound, bound_value, smax = categorizing(region, sigs, bkgs, nscan, args.minN, args.transform, args.nbin if not args.floatB else args.nbin + 1, args.floatB, n_fold, j, args.earlystop)
+        bound, bound_value, smax = categorizing(region, variable, sigs, bkgs, nscan, args.minN, args.transform, args.nbin if not args.floatB else args.nbin + 1, args.floatB, n_fold, j, args.earlystop)
         boundaries.append(bound)
         boundaries_values.append(bound_value)
         smaxs.append(smax)
@@ -165,7 +168,7 @@ def main():
     smax = sum(smaxs)/n_fold
     print('Averaged significance: ', smax)
 
-    s, u = gettingsig(region, boundaries_values, args.transform)
+    s, u = gettingsig(region, variable, boundaries_values, args.transform)
 
     outs={}
     outs['boundaries'] = boundaries
@@ -179,6 +182,7 @@ def main():
     outs['nfold'] = n_fold
     outs['minN'] = args.minN
     outs['fine_tuned'] = False
+    outs['variable'] = variable
 
     if not os.path.isdir('significances/%s'%region):
         print(f'INFO: Creating output folder: "significances/{region}"')
