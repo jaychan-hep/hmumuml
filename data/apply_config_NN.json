@@ -1,0 +1,5 @@
+{"common":   {"observables": ["m_mumu", "eventNumber", "weight", "Muons_CosThetaStar", "n_j", "Event_Ht", "Muons_PT_Lead", "Muons_PT_Sub"], "preselections": ["m_mumu >= 110", "m_mumu <= 180"]},
+ "zero_jet": {"#+preselections": ["n_j == 0"], "models": {"zero_jet": "NN_score"}},
+ "one_jet":  {"#+preselections": ["n_j == 1"], "models": {"one_jet": "NN_score"}},
+ "two_jet":  {"#+preselections": ["n_j >= 2"], "models": {"two_jet": "NN_score", "VBF": "NN_score_VBF"}}
+}

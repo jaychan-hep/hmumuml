@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from root_pandas import *
 import pickle
+import random
 from sklearn.metrics import roc_curve, auc, confusion_matrix, roc_auc_score
 from sklearn.preprocessing import StandardScaler, QuantileTransformer
 import xgboost as xgb
@@ -20,20 +21,42 @@ from pdb import set_trace
 import ROOT
 ROOT.gErrorIgnoreLevel = ROOT.kError + 1
 
+import tensorflow as tf
+from tensorflow.keras.models import Model
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import AveragePooling2D
+from tensorflow.keras.layers import MaxPooling2D
+from tensorflow.keras.layers import Conv2D
+from tensorflow.keras.layers import Activation
+from tensorflow.keras.layers import Dropout
+from tensorflow.keras.layers import Flatten
+from tensorflow.keras.layers import Input
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import concatenate
+import tensorflow.keras as keras
+
 def getArgs():
     """Get arguments from command line."""
     parser = ArgumentParser()
-    parser.add_argument('-c', '--config', action='store', default='data/training_config_BDT.json', help='Region to process')
+    parser.add_argument('-c', '--config', action='store', default='data/training_config_NN.json', help='Region to process')
     parser.add_argument('-i', '--inputFolder', action='store', help='directory of training inputs')
     parser.add_argument('-o', '--outputFolder', action='store', help='directory for outputs')
     parser.add_argument('-r', '--region', action='store', choices=['two_jet', 'one_jet', 'zero_jet', 'VBF', 'all_jet'], default='zero_jet', help='Region to process')
     parser.add_argument('-f', '--fold', action='store', type=int, nargs='+', choices=[0, 1, 2, 3], default=[0, 1, 2, 3], help='specify the fold for training')
-    parser.add_argument('-p', '--params', action='store', type=dict, default=None, help='json string.') #type=json.loads
+    parser.add_argument('-p', '--params', action='store', type=json.loads, default=None, help='json string.') #type=json.loads
     parser.add_argument('--save', action='store_true', help='Save model weights to HDF5 file')
     parser.add_argument('--roc', action='store_true', help='Plot ROC')
     parser.add_argument('--skopt', action='store_true', default=False, help='Run hyperparameter tuning using skopt')
     parser.add_argument('--skopt-plot', action='store_true', default=False, help='Plot skopt results')
     return parser.parse_args()
+
+def fixRandomSeed(seed_value):
+
+    os.environ['PYTHONHASHSEED']=str(seed_value)
+    random.seed(seed_value)
+    np.random.seed(seed_value)
+    tf.compat.v1.set_random_seed(seed_value)
 
 class XGBoostHandler(object):
     "Class for running XGBoost"
@@ -68,15 +91,16 @@ class XGBoostHandler(object):
         self.m_train_wt = {}
         self.m_val_wt = {}
         self.m_test_wt = {}
+        self.m_x_train = {}
+        self.m_x_val = {}
+        self.m_x_test = {}
+        self.m_x_test_sig = {}
+        self.m_x_test_bkg = {}
         self.m_y_train = {}
         self.m_y_val = {}
         self.m_y_test = {}
-        self.m_dTrain = {}
-        self.m_dVal = {}
-        self.m_dTest = {}
-        self.m_dTest_sig = {}
-        self.m_dTest_bkg = {}
-        self.m_bst = {}
+        self.m_model = {}
+        self.m_metrics = {}
         self.m_score_train = {}
         self.m_score_val = {}
         self.m_score_test = {}
@@ -245,6 +269,12 @@ class XGBoostHandler(object):
         x_val = pd.concat([x_val_sig, x_val_bkg])
         x_test = pd.concat([x_test_sig, x_test_bkg])
 
+        self.m_x_train[fold] = x_train.to_numpy()
+        self.m_x_val[fold] = x_val.to_numpy()
+        self.m_x_test[fold] = x_test.to_numpy()
+        self.m_x_test_sig[fold] = x_test_sig.to_numpy()
+        self.m_x_test_bkg[fold] = x_test_bkg.to_numpy()
+
         # setup the weights
         print('XGB INFO: Setting the event weights...')
 
@@ -257,23 +287,49 @@ class XGBoostHandler(object):
         test_sig_wt = test_sig[[self.weight]]
         test_bkg_wt = test_bkg[[self.weight]]
 
-        self.m_train_wt[fold] = pd.concat([train_sig_wt, train_bkg_wt]).to_numpy()
-        self.m_val_wt[fold] = pd.concat([val_sig_wt, val_bkg_wt]).to_numpy()
-        self.m_test_wt[fold] = pd.concat([test_sig_wt, test_bkg_wt]).to_numpy()
+        self.m_train_wt[fold] = pd.concat([train_sig_wt, train_bkg_wt]).to_numpy().reshape((-1))
+        self.m_val_wt[fold] = pd.concat([val_sig_wt, val_bkg_wt]).to_numpy().reshape((-1))
+        self.m_test_wt[fold] = pd.concat([test_sig_wt, test_bkg_wt]).to_numpy().reshape((-1))
 
         # setup the truth labels
         print('XGB INFO: Signal labeled as one; background labeled as zero.')
         self.m_y_train[fold] = np.concatenate((np.ones(len(train_sig), dtype=np.uint8), np.zeros(len(train_bkg), dtype=np.uint8)))
         self.m_y_val[fold]   = np.concatenate((np.ones(len(val_sig)  , dtype=np.uint8), np.zeros(len(val_bkg)  , dtype=np.uint8)))
         self.m_y_test[fold]  = np.concatenate((np.ones(len(test_sig)  , dtype=np.uint8), np.zeros(len(test_bkg)  , dtype=np.uint8)))
-        
-        # construct DMatrix
-        print('XGB INFO: Constucting D-Matrix...')
-        self.m_dTrain[fold] = xgb.DMatrix(x_train, label=self.m_y_train[fold], weight=self.m_train_wt[fold])
-        self.m_dVal[fold] = xgb.DMatrix(x_val, label=self.m_y_val[fold], weight=self.m_val_wt[fold])
-        self.m_dTest[fold] = xgb.DMatrix(x_test)
-        self.m_dTest_sig[fold] = xgb.DMatrix(x_test_sig)
-        self.m_dTest_bkg[fold] = xgb.DMatrix(x_test_bkg)
+
+    def AddMetric(self, metric):
+
+        if metric == "auc":
+            self.m_metrics["auc"] = keras.metrics.AUC(name="auc")
+
+    def buildModel(self, fold, param=None):
+
+        if not param:
+            print('XGB INFO: Setting the hyperparameters...')
+            param = self.params[0 if len(self.params) == 1 else fold]
+        print('param: ', param)
+
+        print('XGB INFO: Building neural network architecture...')
+        input_shape = self.m_x_train[fold].shape[1]
+        print(f"Input shape: {input_shape}")
+
+        if not "auc" in self.m_metrics:
+            self.AddMetric("auc")
+
+        self.m_model[fold] = Sequential()
+        self.m_model[fold].add(Dense(units=40, activation='relu', input_shape=(input_shape,)))
+        self.m_model[fold].add(Dropout(0.2))
+        self.m_model[fold].add(Dense(units=40, activation='relu'))
+        self.m_model[fold].add(Dropout(0.2))
+        self.m_model[fold].add(Dense(units=40, activation='relu'))
+        self.m_model[fold].add(Dropout(0.2))
+        self.m_model[fold].add(Dense(units=40, activation='relu'))
+        self.m_model[fold].add(Dropout(0.2))
+        self.m_model[fold].add(Dense(units=1, activation='sigmoid'))
+        self.m_model[fold].compile(loss=keras.losses.BinaryCrossentropy(),
+              optimizer=keras.optimizers.SGD(learning_rate=param.get("lr", 0.0001), momentum=param.get("momentum", 0.9), nesterov=True),
+              weighted_metrics=[self.m_metrics["auc"]])
+        self.m_model[fold].summary()
 
     def trainModel(self, fold, param=None):
 
@@ -284,22 +340,27 @@ class XGBoostHandler(object):
 
         # finally start training!!!
         print('XGB INFO: Start training!!!')
-        evallist  = [(self.m_dTrain[fold], 'train'), (self.m_dVal[fold], 'eval')]
-        evals_result = {}
-        eval_result_history = []
+        callback = keras.callbacks.EarlyStopping(monitor='val_auc', patience=self.early_stopping_rounds, restore_best_weights=True, mode='max')
         try:
-            self.m_bst[fold] = xgb.train(param, self.m_dTrain[fold], self.numRound, evals=evallist, early_stopping_rounds=self.early_stopping_rounds, evals_result=evals_result)
+            self.m_model[fold].fit(self.m_x_train[fold],
+                self.m_y_train[fold],
+                epochs=self.numRound,
+                batch_size=param.get("Bs", 5000),
+                sample_weight=self.m_train_wt[fold],
+                validation_data=(self.m_x_val[fold], self.m_y_val[fold], self.m_val_wt[fold]),
+                callbacks=[callback]
+            )
         except KeyboardInterrupt:
             print('Finishing on SIGINT.')
 
     def testModel(self, fold):
         # get scores
         print('XGB INFO: Computing scores for different sample sets...')
-        self.m_score_val[fold]   = self.m_bst[fold].predict(self.m_dVal[fold])
-        self.m_score_test[fold]  = self.m_bst[fold].predict(self.m_dTest[fold])
-        self.m_score_train[fold] = self.m_bst[fold].predict(self.m_dTrain[fold])
-        self.m_score_test_sig[fold]  = self.m_bst[fold].predict(self.m_dTest_sig[fold])
-        self.m_score_test_bkg[fold]  = self.m_bst[fold].predict(self.m_dTest_bkg[fold])
+        self.m_score_val[fold]   = self.m_model[fold].predict(self.m_x_val[fold])
+        self.m_score_test[fold]  = self.m_model[fold].predict(self.m_x_test[fold])
+        self.m_score_train[fold] = self.m_model[fold].predict(self.m_x_train[fold])
+        self.m_score_test_sig[fold]  = self.m_model[fold].predict(self.m_x_test_sig[fold])
+        self.m_score_test_bkg[fold]  = self.m_model[fold].predict(self.m_x_test_bkg[fold])
 
     def plotScore(self, fold=0, sample_set='val'):
 
@@ -327,10 +388,9 @@ class XGBoostHandler(object):
 
         if save:
             # create output directory
-            if not os.path.isdir('plots/feature_importance'):
-                os.makedirs('plots/feature_importance')
+            os.makedirs('plots/feature_importance', exist_ok=True)
             # save figure
-            plt.savefig('plots/feature_importance/BDT_%s_%d.pdf' % (self._region, fold))
+            plt.savefig('plots/feature_importance/%s_%d.pdf' % (self._region, fold))
 
         if show: plt.show()
 
@@ -371,10 +431,9 @@ class XGBoostHandler(object):
 
         if save:
             # create output directory
-            if not os.path.isdir('plots/roc_curve'):
-                os.makedirs('plots/roc_curve')
+            os.makedirs('plots/roc_curve', exist_ok=True)
             # save figure
-            plt.savefig('plots/roc_curve/BDT_%s_%d.pdf' % (self._region, fold))
+            plt.savefig('plots/roc_curve/NN_%s_%d.pdf' % (self._region, fold))
 
         if show: plt.show()
 
@@ -412,15 +471,14 @@ class XGBoostHandler(object):
     def save(self, fold=0):
 
         # create output directory
-        if not os.path.isdir(self._outputFolder):
-            os.makedirs(self._outputFolder)
+        os.makedirs(self._outputFolder, exist_ok=True)
 
         # save BDT model
-        if fold in self.m_bst.keys(): self.m_bst[fold].save_model('%s/BDT_%s_%d.h5' % (self._outputFolder, self._region, fold))
+        if fold in self.m_model.keys(): self.m_model[fold].save('%s/NN_%s_%d.tf' % (self._outputFolder, self._region, fold))
 
         # save score transformer
         if fold in self.m_tsf.keys(): 
-            with open('%s/BDT_tsf_%s_%d.pkl' %(self._outputFolder, self._region, fold), 'wb') as f:
+            with open('%s/tsf_%s_%d.pkl' %(self._outputFolder, self._region, fold), 'wb') as f:
                 pickle.dump(self.m_tsf[fold], f, -1)
 
     def skoptHP(self, fold):
@@ -434,25 +492,36 @@ class XGBoostHandler(object):
 
         print ('default param: ', self._region, fold, self.params[fold])
 
-        search_space = [Real(0.3, 0.7, name='alpha'),
-                Real(0.4, 1, name='colsample_bytree'),
-                Real(0, 10, name='gamma'),
-                Real(5, 20, name='max_delta_step'),
-                Integer(4, 100, name='min_child_weight'),
-                Real(0.7, 1, name='subsample'),
-                Real(0.01, 0.4, name='eta'),
-                Integer(200, 400, name='max_bin'),
-                Integer(5, 20, name='max_depth'),
-        ]
+        if self._region == "zero_jet":
+            search_space = [
+                Real(0.0004, 0.004, name='lr', prior='log-uniform'),
+                # Real(0., 1., name='momentum')
+            ]
+        elif self._region == "one_jet":
+            search_space = [
+                Real(0.001, 0.006, name='lr'),
+                # Real(0., 1., name='momentum')
+            ]
+        elif self._region == "two_jet":
+            search_space = [
+                Real(0.00001, 0.0002, name='lr'),
+                # Real(0., 1., name='momentum')
+            ]
+        elif self._region == "VBF":
+            search_space = [
+                Real(0.00001, 0.0002, name='lr'),
+                # Real(0., 1., name='momentum')
+            ]
 
         def objective(param):
 
             self.setParams(param, fold)
-            # self.setParams({'eval_metric': ['auc']}, fold)
+            self.setParams({'eval_metric': ['auc']}, fold)
+            self.buildModel(fold, self.params[fold])
             self.trainModel(fold, self.params[fold])
             self.testModel(fold)
             auc = self.getAUC(fold)[-1]
-            return -auc
+            return auc
 
         search_names = [var.name for var in search_space]
 
@@ -460,12 +529,11 @@ class XGBoostHandler(object):
                     n_initial_points=10,
                     acq_optimizer_kwargs={'n_jobs':4})
 
-        n_calls = 20
+        n_calls = 100
         exp_dir = 'models/skopt/'
+        os.makedirs(exp_dir, exist_ok=True)
 
-        if not os.path.exists(exp_dir):
-            os.makedirs(exp_dir)
-
+        best_AUC = 0
         for i in range(n_calls):
 
             sampled_point = opt.ask()
@@ -473,8 +541,13 @@ class XGBoostHandler(object):
             # param = {key.decode(): val for key, val in param.items()}
             print('Point:', i+1, param)
             f_val = objective(param)
-            print ('AUC:', -f_val)
-            opt_result = opt.tell(sampled_point, f_val)
+            print ('AUC:', f_val)
+            if f_val > best_AUC:
+                best_AUC = f_val
+                self.plotROC(fold)
+                self.transformScore(fold)
+                self.save(fold)
+            opt_result = opt.tell(sampled_point, -f_val)
 
             with open(exp_dir + 'optimizer_region_'+self._region+'_fold'+str(fold) + '.pkl', 'wb') as fp:
                 
@@ -497,16 +570,10 @@ class XGBoostHandler(object):
 
                     dump(opt_result, fp)
 
-        print(opt_result)
+        with open(exp_dir + 'results_region_'+self._region+'_fold'+str(fold) + '.json', 'w') as fp:
 
-        opt_result_x = [float(i) for i in opt_result.x]
-        param = dict(zip(search_names, opt_result_x))
-        self.setParams(param, fold)
-
-        with open(exp_dir + 'BDT_region_'+self._region+'_fold'+str(fold) + '.json', 'w') as fp:
-
-            json.dump(self.params[fold], fp)
-            print('Save to ', exp_dir + 'BDT_region_'+self._region+'_fold'+str(fold) + '.json')
+            json.dump(dict(zip(search_names, opt_result.x)), fp)
+            print('Save to ', exp_dir + 'results_region_'+self._region+'_fold'+str(fold) + '.json')
 
 
     def skoptPlot(self, fold):
@@ -528,16 +595,15 @@ class XGBoostHandler(object):
                  'figure.figsize'   : (5,4)}) # w,h
 
         exp_dir = 'models/skopt/'
-        fig_dir = 'plots/skopt/figures/BDT_region_'+self._region+'_fold'+str(fold)+'/'
+        fig_dir = 'plots/skopt/figures/region_'+self._region+'_fold'+str(fold)+'/'
 
-        if not os.path.exists(fig_dir):
-            os.makedirs(fig_dir)
+        os.makedirs(fig_dir, exist_ok=True)
 
         # Plots expect default rcParams
         plt.rcdefaults()
 
         # Load results
-        res_loaded = load(exp_dir + 'BDT_region_'+self._region+'_fold'+str(fold) + '.pkl')
+        res_loaded = load(exp_dir + 'results_region_'+self._region+'_fold'+str(fold) + '.pkl')
         print(res_loaded)
 
         # Plot evaluations
@@ -585,6 +651,8 @@ def main():
 
     xgb.readData()
 
+    fixRandomSeed(1)
+
     # looping over the "4 folds"
     for i in args.fold:
 
@@ -604,13 +672,15 @@ def main():
                 print('Finishing on SIGINT.')
             continue
 
+        xgb.buildModel(i)
+
         xgb.trainModel(i)
 
         xgb.testModel(i)
         print("param: %s, Val AUC: %f" % xgb.getAUC(i))
 
         #xgb.plotScore(i, 'test')
-        xgb.plotFeaturesImportance(i)
+        # xgb.plotFeaturesImportance(i)
         xgb.plotROC(i)
 
         xgb.transformScore(i)

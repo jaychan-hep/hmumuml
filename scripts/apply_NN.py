@@ -7,7 +7,7 @@ import pandas as pd
 from root_pandas import *
 import pickle
 from sklearn.preprocessing import StandardScaler, QuantileTransformer
-import xgboost as xgb
+# import xgboost as xgb
 from tqdm import tqdm
 import logging
 from pdb import set_trace
@@ -16,10 +16,26 @@ import ROOT
 ROOT.gErrorIgnoreLevel = ROOT.kError + 1
 pd.options.mode.chained_assignment = None
 
+from tensorflow.keras.models import Model
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import load_model
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import AveragePooling2D
+from tensorflow.keras.layers import MaxPooling2D
+from tensorflow.keras.layers import Conv2D
+from tensorflow.keras.layers import Activation
+from tensorflow.keras.layers import Dropout
+from tensorflow.keras.layers import Flatten
+from tensorflow.keras.layers import Input
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import concatenate
+import tensorflow as tf
+import tensorflow.keras as keras
+
 def getArgs():
     """Get arguments from command line."""
     parser = ArgumentParser()
-    parser.add_argument('-c', '--config', action='store', nargs=2, default=['data/training_config_BDT.json', 'data/apply_config_BDT.json'], help='Region to process')
+    parser.add_argument('-c', '--config', action='store', nargs=2, default=['data/training_config_NN.json', 'data/apply_config_NN.json'], help='Region to process')
     parser.add_argument('-i', '--inputFolder', action='store', default='skimmed_ntuples', help='directory of training inputs')
     parser.add_argument('-m', '--modelFolder', action='store', default='models', help='directory of BDT models')
     parser.add_argument('-o', '--outputFolder', action='store', default='outputs', help='directory for outputs')
@@ -160,8 +176,7 @@ class ApplyXGBHandler(object):
                 print('XGB INFO: Loading BDT model: ', model)
                 self.m_models[model] = []
                 for i in range(4):
-                    bst = xgb.Booster()
-                    bst.load_model('%s/BDT_%s_%d.h5'%(self._modelFolder, model, i))
+                    bst = load_model('%s/NN_%s_%d.tf'%(self._modelFolder, model, i))
                     self.m_models[model].append(bst)
                     del bst
 
@@ -172,7 +187,7 @@ class ApplyXGBHandler(object):
                 print('XGB INFO: Loading score transformer for model: ', model)
                 self.m_tsfs[model] = []
                 for i in range(4):
-                    tsf = pickle.load(open('%s/BDT_tsf_%s_%d.pkl'%(self._modelFolder, model, i), "rb" ), encoding = 'latin1' )
+                    tsf = pickle.load(open('%s/tsf_%s_%d.pkl'%(self._modelFolder, model, i), "rb" ), encoding = 'latin1' )
                     self.m_tsfs[model].append(tsf)
 
     def applyBDT(self, category, scale=1):
@@ -201,14 +216,13 @@ class ApplyXGBHandler(object):
                 data_o = data_s[self._outbranches]
 
                 for model in self.train_variables.keys():
-                    x_Events = data_s[self.train_variables[model]]
-                    dEvents = xgb.DMatrix(x_Events)
-                    scores = self.m_models[model][i].predict(dEvents)
+                    x_Events = data_s[self.train_variables[model]].to_numpy()
+                    scores = self.m_models[model][i].predict(x_Events)
                     scores_t = self.m_tsfs[model][i].transform(scores.reshape(-1,1)).reshape(-1)
                 
-                    xgb_basename = self.models[model]
-                    data_o[xgb_basename] = scores
-                    data_o[xgb_basename+'_t'] = scores_t
+                    NN_basename = self.models[model]
+                    data_o[NN_basename] = scores
+                    data_o[NN_basename+'_t'] = scores_t
 
                 out_data = pd.concat([out_data, data_o], ignore_index=True, sort=False)
 
