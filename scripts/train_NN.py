@@ -36,6 +36,15 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import concatenate
 import tensorflow.keras as keras
 
+from sklearn.preprocessing import StandardScaler
+from pickle import dump, load
+
+SEED = 42
+np.random.seed(SEED)
+os.environ['PYTHONHASHSEED'] = '0'
+random.seed(SEED)
+tf.random.set_seed(SEED)
+
 def getArgs():
     """Get arguments from command line."""
     parser = ArgumentParser()
@@ -269,9 +278,25 @@ class XGBoostHandler(object):
         x_val = pd.concat([x_val_sig, x_val_bkg])
         x_test = pd.concat([x_test_sig, x_test_bkg])
 
-        self.m_x_train[fold] = x_train.to_numpy()
-        self.m_x_val[fold] = x_val.to_numpy()
-        self.m_x_test[fold] = x_test.to_numpy()
+        scale = StandardScaler().fit(x_train)
+        x_train = scale.transform(x_train)
+        x_val = scale.transform(x_val)
+        x_test = scale.transform(x_test)
+
+        #save the scaler for later process
+        scaler_filename = '%s_%s_standardscaler.pkl' % (self._region, str(fold))
+        dump(scale, open('standardscaler.pkl', 'wb'))
+        
+        self.m_x_train[fold] = x_train#.to_numpy()
+        self.m_x_val[fold] = x_val#.to_numpy()
+        self.m_x_test[fold] = x_test#.to_numpy()
+
+        scaler_name = 'standardscaler_'+self._region+'_'+str(fold)+".pkl"
+        dump(scale, open(scaler_name, 'wb'))
+   
+        print("training_size: %s; val_size: %s; test_size: %s" %(x_train.shape, x_val.shape, x_test.shape))     
+        print('++++++++++++++++++++++++++++++++++')
+   
         self.m_x_test_sig[fold] = x_test_sig.to_numpy()
         self.m_x_test_bkg[fold] = x_test_bkg.to_numpy()
 
@@ -317,18 +342,21 @@ class XGBoostHandler(object):
             self.AddMetric("auc")
 
         self.m_model[fold] = Sequential()
-        self.m_model[fold].add(Dense(units=40, activation='relu', input_shape=(input_shape,)))
-        self.m_model[fold].add(Dropout(0.2))
-        self.m_model[fold].add(Dense(units=40, activation='relu'))
-        self.m_model[fold].add(Dropout(0.2))
-        self.m_model[fold].add(Dense(units=40, activation='relu'))
-        self.m_model[fold].add(Dropout(0.2))
-        self.m_model[fold].add(Dense(units=40, activation='relu'))
-        self.m_model[fold].add(Dropout(0.2))
+        self.m_model[fold].add(Dense(units=64, activation='relu', input_shape=(input_shape,)))
+        self.m_model[fold].add(Dense(units=32, activation='relu'))
+        self.m_model[fold].add(Dropout(0.1))
+        self.m_model[fold].add(Dense(units=16, activation='relu'))
+        self.m_model[fold].add(Dense(units=8, activation='relu'))
         self.m_model[fold].add(Dense(units=1, activation='sigmoid'))
-        self.m_model[fold].compile(loss=keras.losses.BinaryCrossentropy(),
-              optimizer=keras.optimizers.SGD(learning_rate=param.get("lr", 0.0001), momentum=param.get("momentum", 0.9), nesterov=True),
+
+        #self.m_model[fold].compile(loss=keras.losses.BinaryCrossentropy(),
+        #      optimizer=keras.optimizers.SGD(learning_rate=param.get("lr", 0.0001), momentum=param.get("momentum", 0.9), nesterov=True),
+        #      weighted_metrics=[self.m_metrics["auc"]])
+
+        self.m_model[fold].compile(loss = 'mse',
+              optimizer=tf.keras.optimizers.Adam(0.001),
               weighted_metrics=[self.m_metrics["auc"]])
+      
         self.m_model[fold].summary()
 
     def trainModel(self, fold, param=None):
@@ -345,7 +373,7 @@ class XGBoostHandler(object):
             self.m_model[fold].fit(self.m_x_train[fold],
                 self.m_y_train[fold],
                 epochs=self.numRound,
-                batch_size=param.get("Bs", 5000),
+                batch_size=64, #param.get("Bs", 5000),
                 sample_weight=self.m_train_wt[fold],
                 validation_data=(self.m_x_val[fold], self.m_y_val[fold], self.m_val_wt[fold]),
                 callbacks=[callback]
@@ -678,7 +706,8 @@ def main():
 
         xgb.testModel(i)
         print("param: %s, Val AUC: %f" % xgb.getAUC(i))
-
+        print('++++Test AUC++++')
+        print(xgb.getAUC(i, sample_set='test') )
         #xgb.plotScore(i, 'test')
         # xgb.plotFeaturesImportance(i)
         xgb.plotROC(i)
