@@ -34,7 +34,11 @@ from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import concatenate
+from tensorflow.keras.layers.experimental.preprocessing import Normalization
 import tensorflow.keras as keras
+
+from sklearn.preprocessing import StandardScaler
+from pickle import dump, load
 
 def getArgs():
     """Get arguments from command line."""
@@ -57,6 +61,7 @@ def fixRandomSeed(seed_value):
     random.seed(seed_value)
     np.random.seed(seed_value)
     tf.compat.v1.set_random_seed(seed_value)
+    tf.random.set_seed(seed_value)
 
 class XGBoostHandler(object):
     "Class for running XGBoost"
@@ -268,10 +273,11 @@ class XGBoostHandler(object):
         x_train = pd.concat([x_train_sig, x_train_bkg])
         x_val = pd.concat([x_val_sig, x_val_bkg])
         x_test = pd.concat([x_test_sig, x_test_bkg])
-
+        
         self.m_x_train[fold] = x_train.to_numpy()
         self.m_x_val[fold] = x_val.to_numpy()
         self.m_x_test[fold] = x_test.to_numpy()
+   
         self.m_x_test_sig[fold] = x_test_sig.to_numpy()
         self.m_x_test_bkg[fold] = x_test_bkg.to_numpy()
 
@@ -316,19 +322,24 @@ class XGBoostHandler(object):
         if not "auc" in self.m_metrics:
             self.AddMetric("auc")
 
+        normalizer = Normalization()
+        normalizer.adapt(self.m_x_train[fold])
+
         self.m_model[fold] = Sequential()
-        self.m_model[fold].add(Dense(units=40, activation='relu', input_shape=(input_shape,)))
-        self.m_model[fold].add(Dropout(0.2))
-        self.m_model[fold].add(Dense(units=40, activation='relu'))
-        self.m_model[fold].add(Dropout(0.2))
-        self.m_model[fold].add(Dense(units=40, activation='relu'))
-        self.m_model[fold].add(Dropout(0.2))
-        self.m_model[fold].add(Dense(units=40, activation='relu'))
-        self.m_model[fold].add(Dropout(0.2))
+        self.m_model[fold].add(Input(shape=(input_shape,)))
+        self.m_model[fold].add(normalizer)
+        self.m_model[fold].add(Dense(units=64, activation='relu'))
+        self.m_model[fold].add(Dense(units=32, activation='relu'))
+        self.m_model[fold].add(Dropout(0.1))
+        self.m_model[fold].add(Dense(units=16, activation='relu'))
+        self.m_model[fold].add(Dense(units=8, activation='relu'))
         self.m_model[fold].add(Dense(units=1, activation='sigmoid'))
+
         self.m_model[fold].compile(loss=keras.losses.BinaryCrossentropy(),
-              optimizer=keras.optimizers.SGD(learning_rate=param.get("lr", 0.0001), momentum=param.get("momentum", 0.9), nesterov=True),
+              optimizer=tf.keras.optimizers.Adam(param.get("lr", 0.001)),
+              # optimizer=keras.optimizers.SGD(learning_rate=param.get("lr", 0.001), momentum=param.get("momentum", 0.9), nesterov=True),
               weighted_metrics=[self.m_metrics["auc"]])
+      
         self.m_model[fold].summary()
 
     def trainModel(self, fold, param=None):
@@ -345,7 +356,7 @@ class XGBoostHandler(object):
             self.m_model[fold].fit(self.m_x_train[fold],
                 self.m_y_train[fold],
                 epochs=self.numRound,
-                batch_size=param.get("Bs", 5000),
+                batch_size=param.get("Bs", 64),
                 sample_weight=self.m_train_wt[fold],
                 validation_data=(self.m_x_val[fold], self.m_y_val[fold], self.m_val_wt[fold]),
                 callbacks=[callback]
@@ -494,22 +505,22 @@ class XGBoostHandler(object):
 
         if self._region == "zero_jet":
             search_space = [
-                Real(0.0004, 0.004, name='lr', prior='log-uniform'),
+                Real(0.0001, 0.001, name='lr'),#, prior='log-uniform'),
                 # Real(0., 1., name='momentum')
             ]
         elif self._region == "one_jet":
             search_space = [
-                Real(0.001, 0.006, name='lr'),
+                Real(0.0001, 0.001, name='lr'),#, prior='log-uniform'),
                 # Real(0., 1., name='momentum')
             ]
         elif self._region == "two_jet":
             search_space = [
-                Real(0.00001, 0.0002, name='lr'),
+                Real(0.0001, 0.001, name='lr'),#, prior='log-uniform'),
                 # Real(0., 1., name='momentum')
             ]
         elif self._region == "VBF":
             search_space = [
-                Real(0.00001, 0.0002, name='lr'),
+                Real(0.0001, 0.001, name='lr'),#, prior='log-uniform'),
                 # Real(0., 1., name='momentum')
             ]
 
@@ -678,8 +689,9 @@ def main():
 
         xgb.testModel(i)
         print("param: %s, Val AUC: %f" % xgb.getAUC(i))
-
-        #xgb.plotScore(i, 'test')
+        print('++++Test AUC++++')
+        print(xgb.getAUC(i, sample_set='test') )
+        # xgb.plotScore(i, 'test')
         # xgb.plotFeaturesImportance(i)
         xgb.plotROC(i)
 
