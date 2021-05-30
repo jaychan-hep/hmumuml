@@ -34,16 +34,11 @@ from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import concatenate
+from tensorflow.keras.layers.experimental.preprocessing import Normalization
 import tensorflow.keras as keras
 
 from sklearn.preprocessing import StandardScaler
 from pickle import dump, load
-
-SEED = 42
-np.random.seed(SEED)
-os.environ['PYTHONHASHSEED'] = '0'
-random.seed(SEED)
-tf.random.set_seed(SEED)
 
 def getArgs():
     """Get arguments from command line."""
@@ -66,6 +61,7 @@ def fixRandomSeed(seed_value):
     random.seed(seed_value)
     np.random.seed(seed_value)
     tf.compat.v1.set_random_seed(seed_value)
+    tf.random.set_seed(seed_value)
 
 class XGBoostHandler(object):
     "Class for running XGBoost"
@@ -277,25 +273,10 @@ class XGBoostHandler(object):
         x_train = pd.concat([x_train_sig, x_train_bkg])
         x_val = pd.concat([x_val_sig, x_val_bkg])
         x_test = pd.concat([x_test_sig, x_test_bkg])
-
-        scale = StandardScaler().fit(x_train)
-        x_train = scale.transform(x_train)
-        x_val = scale.transform(x_val)
-        x_test = scale.transform(x_test)
-
-        #save the scaler for later process
-        scaler_filename = '%s_%s_standardscaler.pkl' % (self._region, str(fold))
-        dump(scale, open('standardscaler.pkl', 'wb'))
         
-        self.m_x_train[fold] = x_train#.to_numpy()
-        self.m_x_val[fold] = x_val#.to_numpy()
-        self.m_x_test[fold] = x_test#.to_numpy()
-
-        scaler_name = 'standardscaler_'+self._region+'_'+str(fold)+".pkl"
-        dump(scale, open(scaler_name, 'wb'))
-   
-        print("training_size: %s; val_size: %s; test_size: %s" %(x_train.shape, x_val.shape, x_test.shape))     
-        print('++++++++++++++++++++++++++++++++++')
+        self.m_x_train[fold] = x_train.to_numpy()
+        self.m_x_val[fold] = x_val.to_numpy()
+        self.m_x_test[fold] = x_test.to_numpy()
    
         self.m_x_test_sig[fold] = x_test_sig.to_numpy()
         self.m_x_test_bkg[fold] = x_test_bkg.to_numpy()
@@ -341,20 +322,22 @@ class XGBoostHandler(object):
         if not "auc" in self.m_metrics:
             self.AddMetric("auc")
 
+        normalizer = Normalization()
+        normalizer.adapt(self.m_x_train[fold])
+
         self.m_model[fold] = Sequential()
-        self.m_model[fold].add(Dense(units=64, activation='relu', input_shape=(input_shape,)))
+        self.m_model[fold].add(Input(shape=(input_shape,)))
+        self.m_model[fold].add(normalizer)
+        self.m_model[fold].add(Dense(units=64, activation='relu'))
         self.m_model[fold].add(Dense(units=32, activation='relu'))
         self.m_model[fold].add(Dropout(0.1))
         self.m_model[fold].add(Dense(units=16, activation='relu'))
         self.m_model[fold].add(Dense(units=8, activation='relu'))
         self.m_model[fold].add(Dense(units=1, activation='sigmoid'))
 
-        #self.m_model[fold].compile(loss=keras.losses.BinaryCrossentropy(),
-        #      optimizer=keras.optimizers.SGD(learning_rate=param.get("lr", 0.0001), momentum=param.get("momentum", 0.9), nesterov=True),
-        #      weighted_metrics=[self.m_metrics["auc"]])
-
-        self.m_model[fold].compile(loss = 'mse',
-              optimizer=tf.keras.optimizers.Adam(0.001),
+        self.m_model[fold].compile(loss=keras.losses.BinaryCrossentropy(),
+              optimizer=tf.keras.optimizers.Adam(param.get("lr", 0.001)),
+              # optimizer=keras.optimizers.SGD(learning_rate=param.get("lr", 0.001), momentum=param.get("momentum", 0.9), nesterov=True),
               weighted_metrics=[self.m_metrics["auc"]])
       
         self.m_model[fold].summary()
@@ -373,7 +356,7 @@ class XGBoostHandler(object):
             self.m_model[fold].fit(self.m_x_train[fold],
                 self.m_y_train[fold],
                 epochs=self.numRound,
-                batch_size=64, #param.get("Bs", 5000),
+                batch_size=param.get("Bs", 64),
                 sample_weight=self.m_train_wt[fold],
                 validation_data=(self.m_x_val[fold], self.m_y_val[fold], self.m_val_wt[fold]),
                 callbacks=[callback]
@@ -522,22 +505,22 @@ class XGBoostHandler(object):
 
         if self._region == "zero_jet":
             search_space = [
-                Real(0.0004, 0.004, name='lr', prior='log-uniform'),
+                Real(0.0001, 0.001, name='lr'),#, prior='log-uniform'),
                 # Real(0., 1., name='momentum')
             ]
         elif self._region == "one_jet":
             search_space = [
-                Real(0.001, 0.006, name='lr'),
+                Real(0.0001, 0.001, name='lr'),#, prior='log-uniform'),
                 # Real(0., 1., name='momentum')
             ]
         elif self._region == "two_jet":
             search_space = [
-                Real(0.00001, 0.0002, name='lr'),
+                Real(0.0001, 0.001, name='lr'),#, prior='log-uniform'),
                 # Real(0., 1., name='momentum')
             ]
         elif self._region == "VBF":
             search_space = [
-                Real(0.00001, 0.0002, name='lr'),
+                Real(0.0001, 0.001, name='lr'),#, prior='log-uniform'),
                 # Real(0., 1., name='momentum')
             ]
 
@@ -708,7 +691,7 @@ def main():
         print("param: %s, Val AUC: %f" % xgb.getAUC(i))
         print('++++Test AUC++++')
         print(xgb.getAUC(i, sample_set='test') )
-        #xgb.plotScore(i, 'test')
+        # xgb.plotScore(i, 'test')
         # xgb.plotFeaturesImportance(i)
         xgb.plotROC(i)
 
