@@ -30,7 +30,7 @@ def getArgs():
     parser.add_argument('-b', '--nbin', type = int, default = 4, choices = [1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16], help = 'number of BDT bins.')
     parser.add_argument('--skip', action = 'store_true', default = False, help = 'skip the hadd part')
     parser.add_argument('--minN', type = float, default = 5, help = 'minimum number of events in mass window')
-    parser.add_argument('-v', '--variable', action = 'store', choices = ['bdt', 'NN'], default = 'bdt', help = 'MVA variable to use')
+    parser.add_argument('-v', '--variable', action = 'store', choices = ['bdt', 'NN'], default = 'NN', help = 'MVA variable to use')
     #parser.add_argument('--val', action = 'store_true', default = False, help = 'use validation samples for categroization')
     parser.add_argument('-t', '--transform', action = 'store_true', default = True, help = 'use the transform scores for categroization')
     parser.add_argument('--floatB', action = 'store_true', default = False, help = 'Floting last boundary')
