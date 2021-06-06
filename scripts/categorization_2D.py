@@ -27,7 +27,7 @@ def getArgs():
     """Get arguments from command line."""
     parser = ArgumentParser()
     parser.add_argument('-r', '--region', action = 'store', choices = ['all_jet', 'two_jet', 'one_jet', 'zero_jet'], default = 'two_jet', help = 'Region to process')
-    parser.add_argument('-va', '--variable', action = 'store', choices = ['bdt', 'NN'], default = 'bdt', help = 'MVA variable to use')
+    parser.add_argument('-va', '--variable', action = 'store', choices = ['bdt', 'NN'], default = 'NN', help = 'MVA variable to use')
     parser.add_argument('-n', '--nscan', type = int, default = 100, help='number of scan.')
     parser.add_argument('--nscanvbf', type = int, default = 100, help='number of scan.')
     parser.add_argument('-b', '--nbin', type = int, default = 4, choices = [1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16], help = 'number of BDT bins.')
