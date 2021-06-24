@@ -22,6 +22,7 @@ import ROOT
 ROOT.gErrorIgnoreLevel = ROOT.kError + 1
 
 import tensorflow as tf
+tf.device('/CPU:0')
 from tensorflow.keras.models import Model
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import BatchNormalization
@@ -39,6 +40,9 @@ import tensorflow.keras as keras
 
 from sklearn.preprocessing import StandardScaler
 from pickle import dump, load
+
+# gpus= tf.config.list_physical_devices('GPU')
+# tf.config.experimental.set_memory_growth(gpus[0], True)
 
 def getArgs():
     """Get arguments from command line."""
@@ -705,4 +709,5 @@ def main():
     return
 
 if __name__ == '__main__':
+    # with tf.device('/CPU:0'):
     main()
