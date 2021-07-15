@@ -33,10 +33,12 @@ from tensorflow.keras.layers import Activation
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Input
-from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Dense, GRU, TimeDistributed
 from tensorflow.keras.layers import concatenate
 from tensorflow.keras.layers.experimental.preprocessing import Normalization
 import tensorflow.keras as keras
+from tensorflow.keras import activations
+from tensorflow.keras import backend as K
 
 from sklearn.preprocessing import StandardScaler
 from pickle import dump, load
@@ -121,6 +123,9 @@ class XGBoostHandler(object):
         self.train_signal = []
         self.train_background = []
         self.train_variables = []
+        self.algorithm = ""
+        self.jet_variables = []
+        self.other_variables = []
         self.preselections = []
         self.signal_preselections = []
         self.background_preselections = []
@@ -307,12 +312,36 @@ class XGBoostHandler(object):
         self.m_y_val[fold]   = np.concatenate((np.ones(len(val_sig)  , dtype=np.uint8), np.zeros(len(val_bkg)  , dtype=np.uint8)))
         self.m_y_test[fold]  = np.concatenate((np.ones(len(test_sig)  , dtype=np.uint8), np.zeros(len(test_bkg)  , dtype=np.uint8)))
 
+        #extract jet and other particles
+        if self.algorithm in ["RNNGRU", "DeepSets"]:
+            self.m_x_train[fold] = self.format_twojet_inputs(self.m_x_train[fold])
+            self.m_x_val[fold] = self.format_twojet_inputs(self.m_x_val[fold])
+            self.m_x_test[fold] = self.format_twojet_inputs(self.m_x_test[fold])
+
+            self.m_x_test_sig[fold] = self.format_twojet_inputs(self.m_x_test_sig[fold])
+            self.m_x_test_bkg[fold] = self.format_twojet_inputs(self.m_x_test_bkg[fold])
+
+    def format_twojet_inputs(self, x):
+
+        x_jets = x[:, self.jet_variables]
+        x_others = x[:, self.other_variables]
+        return [x_jets, x_others]
+
     def AddMetric(self, metric):
 
         if metric == "auc":
             self.m_metrics["auc"] = keras.metrics.AUC(name="auc")
 
     def buildModel(self, fold, param=None):
+
+        if self.algorithm == "NN":
+            self.buildNN(fold, param)
+        elif self.algorithm == "RNNGRU":
+            self.buildRNNGRU(fold, param)
+        elif self.algorithm == "DeepSets":
+            self.buildDeepSets(fold, param)
+
+    def buildNN(self, fold, param=None):
 
         if not param:
             print('XGB INFO: Setting the hyperparameters...')
@@ -332,17 +361,139 @@ class XGBoostHandler(object):
         self.m_model[fold] = Sequential()
         self.m_model[fold].add(Input(shape=(input_shape,)))
         self.m_model[fold].add(normalizer)
-        self.m_model[fold].add(Dense(units=64, activation='relu'))
-        self.m_model[fold].add(Dense(units=32, activation='relu'))
-        self.m_model[fold].add(Dropout(0.1))
-        self.m_model[fold].add(Dense(units=16, activation='relu'))
-        self.m_model[fold].add(Dense(units=8, activation='relu'))
+
+        number_of_nodes = param.get("number_of_nodes", (64, 32, 16, 8))
+        dropouts = param.get("dropouts", [1])
+
+        for i, nodes in enumerate(number_of_nodes):
+            self.m_model[fold].add(Dense(units=nodes, activation='relu'))
+            if i in dropouts:
+                self.m_model[fold].add(Dropout(0.1))
         self.m_model[fold].add(Dense(units=1, activation='sigmoid'))
 
         self.m_model[fold].compile(loss=keras.losses.BinaryCrossentropy(),
               optimizer=tf.keras.optimizers.Adam(param.get("lr", 0.001)),
               # optimizer=keras.optimizers.SGD(learning_rate=param.get("lr", 0.001), momentum=param.get("momentum", 0.9), nesterov=True),
               weighted_metrics=[self.m_metrics["auc"]])
+      
+        self.m_model[fold].summary()
+
+    def buildDeepSets(self, fold, param=None):
+
+        if not param:
+            print('XGB INFO: Setting the hyperparameters...')
+            param = self.params[0 if len(self.params) == 1 else fold]
+        print('param: ', param)
+
+        print('XGB INFO: Building neural network architecture...')
+
+        if not "auc" in self.m_metrics:
+            self.AddMetric("auc")
+
+        jets_input = tf.keras.Input(shape=(self.m_x_train[fold][0].shape[-2], self.m_x_train[fold][0].shape[-1]), dtype=tf.dtypes.float32)
+        others_input = tf.keras.Input(shape=(self.m_x_train[fold][1].shape[1],), dtype=tf.dtypes.float32)
+
+        normalizer_jet = Normalization()
+        normalizer_jet.adapt(self.m_x_train[fold][0])
+
+        normalizer_others = Normalization()
+        normalizer_others.adapt(self.m_x_train[fold][1])
+
+        m_jets = normalizer_jet(jets_input)
+
+        number_of_Phinodes = param.get("number_of_Phinodes", [16, 16, 16])
+        Phidropouts = param.get("Phidropouts", [])
+        for i, nodes in enumerate(number_of_Phinodes):
+            m_jets = TimeDistributed(Dense(nodes, activation='relu'))(m_jets)
+            m_jets = TimeDistributed(BatchNormalization())(m_jets)
+            if i in Phidropouts:
+                m_jets = TimeDistributed(Dropout(0.1))(m_jets)
+
+        m_jets = K.sum(m_jets, axis=1)
+
+        m = concatenate([m_jets, normalizer_others(others_input)])
+
+        number_of_nodes = param.get("number_of_nodes", [64, 32, 16])
+        dropouts = param.get("dropouts", [])
+
+        for i, nodes in enumerate(number_of_nodes):
+            m = Dense(nodes, activation='relu')(m)
+            m = BatchNormalization()(m)
+            if i in dropouts:
+                m = Dropout(0.1)(m)
+
+        output = Dense(1, activation="sigmoid")(m)
+
+        self.m_model[fold] = Model(inputs=[jets_input, others_input], outputs=output)
+
+        self.m_model[fold].compile(loss=keras.losses.BinaryCrossentropy(),
+              optimizer=tf.keras.optimizers.Adam(param.get("lr", 0.001)),
+              # optimizer=keras.optimizers.SGD(learning_rate=param.get("lr", 0.001), momentum=param.get("momentum", 0.9), nesterov=True),
+              weighted_metrics=[self.m_metrics["auc"]]) # 'accuracy'
+      
+        self.m_model[fold].summary()
+
+    def buildRNNGRU(self, fold, param=None):
+
+        if not param:
+            print('XGB INFO: Setting the hyperparameters...')
+            param = self.params[0 if len(self.params) == 1 else fold]
+        print('param: ', param)
+
+        print('XGB INFO: Building neural network architecture...')
+
+        if not "auc" in self.m_metrics:
+            self.AddMetric("auc")
+
+        jets_input = tf.keras.Input(shape=(self.m_x_train[fold][0].shape[-2], self.m_x_train[fold][0].shape[-1]), dtype=tf.dtypes.float32)
+        others_input = tf.keras.Input(shape=(self.m_x_train[fold][1].shape[1],), dtype=tf.dtypes.float32)
+
+        normalizer_jet = Normalization()
+        normalizer_jet.adapt(self.m_x_train[fold][0])
+
+        normalizer_others = Normalization()
+        normalizer_others.adapt(self.m_x_train[fold][1])
+
+        m_jets = normalizer_jet(jets_input)
+
+        number_of_GRUnodes = param.get("number_of_GRUnodes", [16, 12])
+        GRUdropouts = param.get("GRUdropouts", [1])
+        for i, nodes in enumerate(number_of_GRUnodes):
+            if i == 0:
+                m_jets = GRU(nodes, return_sequences=True)(m_jets)
+            else:
+                m_jets = GRU(nodes)(m_jets)
+            m_jets = BatchNormalization()(m_jets)
+            if i in GRUdropouts:
+                m_jets = Dropout(0.1)(m_jets)
+
+        number_of_postGRUnodes = param.get("number_of_postGRUnodes", [16,])
+        postGRUdropouts = param.get("postGRUdropouts", [])
+        for i, nodes in enumerate(number_of_postGRUnodes):
+            m_jets = Dense(nodes, activation='relu')(m_jets)
+            m_jets = BatchNormalization()(m_jets)
+            if i in postGRUdropouts:
+                m_jets = Dropout(0.1)(m_jets)
+
+        m = concatenate([m_jets, normalizer_others(others_input)])
+
+        number_of_nodes = param.get("number_of_nodes", [64, 32, 16])
+        dropouts = param.get("dropouts", [])
+
+        for i, nodes in enumerate(number_of_nodes):
+            m = Dense(nodes, activation='relu')(m)
+            m = BatchNormalization()(m)
+            if i in dropouts:
+                m = Dropout(0.1)(m)
+
+        output = Dense(1, activation="sigmoid")(m)
+
+        self.m_model[fold] = Model(inputs=[jets_input, others_input], outputs=output)
+
+        self.m_model[fold].compile(loss=keras.losses.BinaryCrossentropy(),
+              optimizer=tf.keras.optimizers.Adam(param.get("lr", 0.001)),
+              # optimizer=keras.optimizers.SGD(learning_rate=param.get("lr", 0.001), momentum=param.get("momentum", 0.9), nesterov=True),
+              weighted_metrics=[self.m_metrics["auc"]]) # 'accuracy'
       
         self.m_model[fold].summary()
 

@@ -31,11 +31,13 @@
                                    "Jets_PT_Sub", "Jets_Eta_Sub", "DeltaPhi_mumuj2", "Jets_QGscore_Sub",
                                    "Jets_PT_jj", "Jets_Y_jj", "DeltaPhi_mumujj", "Jets_Minv_jj",
                                    "Event_MET", "noexpand:(Event_Ht-Muons_PT_Lead-Muons_PT_Sub)"],
-              "algorithm": "NN",
-              "params": [{"lr": 0.0005},
-                         {"lr": 0.0005},
-                         {"lr": 0.0005},
-                         {"lr": 0.0005}
+              "algorithm": "DeepSets",
+              "jet_variables": [[3, 4, 5, 6], [7, 8, 9, 10]],
+              "other_variables": [0, 1, 2, 11, 12, 13, 14, 15, 16],
+              "params": [{"lr": 0.0005, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
+                         {"lr": 0.0005, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
+                         {"lr": 0.0005, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
+                         {"lr": 0.0005, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []}
                          ]
               },
  "VBF":      {"train_signal": ["VBF"],
@@ -45,11 +47,13 @@
                                    "Jets_PT_Sub", "Jets_Eta_Sub", "DeltaPhi_mumuj2", "Jets_QGscore_Sub",
                                    "Jets_PT_jj", "Jets_Y_jj", "DeltaPhi_mumujj", "Jets_Minv_jj",
                                    "Event_MET", "noexpand:(Event_Ht-Muons_PT_Lead-Muons_PT_Sub)"],
-              "algorithm": "NN",
-              "params": [{"lr": 0.001},
-                         {"lr": 0.001},
-                         {"lr": 0.001},
-                         {"lr": 0.001}
+              "algorithm": "DeepSets",
+              "jet_variables": [[3, 4, 5, 6], [7, 8, 9, 10]],
+              "other_variables": [0, 1, 2, 11, 12, 13, 14, 15, 16],
+              "params": [{"lr": 0.001, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
+                         {"lr": 0.001, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
+                         {"lr": 0.001, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
+                         {"lr": 0.001, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []}
                          ]
               }
 }
