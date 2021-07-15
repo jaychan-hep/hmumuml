@@ -66,6 +66,9 @@ class ApplyXGBHandler(object):
         self.m_tsfs = {}
 
         self.train_variables = {}
+        self.algorithm = {}
+        self.jet_variables = {}
+        self.other_variables = {}
         self.randomIndex = 'eventNumber'
 
         self.models = {}
@@ -121,12 +124,18 @@ class ApplyXGBHandler(object):
                     # read from the common settings
                     config = configs["common"]
                     if 'train_variables' in config.keys(): self.train_variables[model] = config['train_variables'][:]
+                    if "algorithm" in config.keys(): self.algorithm[model] = config['algorithm']
+                    if "jet_variables" in config.keys(): self.jet_variables[model] = config['jet_variables']
+                    if "other_variables" in config.keys(): self.other_variables[model] = config['other_variables']
     
                     # read from the region specific settings
                     if model in configs.keys():
                         config = configs[model]
                         if 'train_variables' in config.keys(): self.train_variables[model] = config['train_variables'][:]
                         if '+train_variables' in config.keys(): self.train_variables[model] += config['+train_variables']
+                        if "algorithm" in config.keys(): self.algorithm[model] = config['algorithm']
+                        if "jet_variables" in config.keys(): self.jet_variables[model] = config['jet_variables']
+                        if "other_variables" in config.keys(): self.other_variables[model] = config['other_variables']
 
         except Exception as e:
             logging.error("Error reading training configuration '{config}'".format(config=configPath))
@@ -190,6 +199,12 @@ class ApplyXGBHandler(object):
                     tsf = pickle.load(open('%s/tsf_%s_%d.pkl'%(self._modelFolder, model, i), "rb" ), encoding = 'latin1' )
                     self.m_tsfs[model].append(tsf)
 
+    def format_twojet_inputs(self, x, model):
+
+        x_jets = x[:, self.jet_variables[model]]
+        x_others = x[:, self.other_variables[model]]
+        return [x_jets, x_others]
+
     def applyBDT(self, category, scale=1):
 
         outputContainer = self._outputFolder + '/' + self._region
@@ -217,6 +232,8 @@ class ApplyXGBHandler(object):
 
                 for model in self.train_variables.keys():
                     x_Events = data_s[self.train_variables[model]].to_numpy()
+                    if self.algorithm[model] in ["RNNGRU", "DeepSets"]:
+                        x_Events = self.format_twojet_inputs(x_Events, model)
                     scores = self.m_models[model][i].predict(x_Events)
                     scores_t = self.m_tsfs[model][i].transform(scores.reshape(-1,1)).reshape(-1)
                 
