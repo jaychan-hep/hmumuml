@@ -1,9 +1,11 @@
 {"common":   {"train_signal": ["ggF", "VBF"],
               "train_background": ["Z", "ttbar", "diboson", "stop"],
+              "#train_background": ["data_sid"],
               "train_variables": ["Z_PT_OnlyNearFsr", "Z_Y_OnlyNearFsr", "Muons_CosThetaStar"],
-              "preselections": ["m_mumu >= 120", "m_mumu <= 130"],
-              "#signal_preselections": ["m_mumu >= 120", "m_mumu <= 130"],
-              "#background_preselections": ["m_mumu >= 120", "m_mumu <= 130"],
+              "#preselections": ["m_mumu >= 120", "m_mumu <= 130"],
+              "signal_preselections": ["m_mumu >= 120", "m_mumu <= 130"],
+              "background_preselections": ["m_mumu >= 120", "m_mumu <= 130"],
+              "#background_preselections": ["m_mumu >= 110", "(m_mumu <= 120) | (m_mumu >= 130)", "m_mumu <= 180"],
               "randomIndex": "eventNumber", "weight": "weight"
               },
  "zero_jet": {"#+preselections": ["n_j == 0"],
@@ -13,7 +15,8 @@
                          {"lr": 0.0001},
                          {"lr": 0.0001},
                          {"lr": 0.0001}
-                         ]
+                         ],
+              "reduceLr_r" : 10
               },
  "one_jet":  {"#+preselections": ["n_j == 1"],
               "inputTree": "one_jet",
@@ -23,7 +26,8 @@
                          {"lr": 0.0001},
                          {"lr": 0.0001},
                          {"lr": 0.0001}
-                         ]
+                         ],
+              "reduceLr_r" : 10
               },
  "two_jet":  {"#+preselections": ["n_j >= 2"],
               "inputTree": "two_jet",
@@ -31,14 +35,15 @@
                                    "Jets_PT_Sub", "Jets_Eta_Sub", "DeltaPhi_mumuj2", "Jets_QGscore_Sub",
                                    "Jets_PT_jj", "Jets_Y_jj", "DeltaPhi_mumujj", "Jets_Minv_jj",
                                    "Event_MET", "noexpand:(Event_Ht-Muons_PT_Lead-Muons_PT_Sub)"],
-              "algorithm": "RNNGRU",
+              "algorithm": "SelfAttention",
               "object_variables": [[3, 4, 5, 6], [7, 8, 9, 10]],
               "other_variables": [0, 1, 2, 11, 12, 13, 14, 15, 16],
-              "params": [{"lr": 0.0005, "number_of_GRUnodes": [16, 12], "GRUdropouts": [1], "number_of_postGRUnodes": [16], "postGRUdropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
-                         {"lr": 0.0005, "number_of_GRUnodes": [16, 12], "GRUdropouts": [1], "number_of_postGRUnodes": [16], "postGRUdropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
-                         {"lr": 0.0005, "number_of_GRUnodes": [16, 12], "GRUdropouts": [1], "number_of_postGRUnodes": [16], "postGRUdropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
-                         {"lr": 0.0005, "number_of_GRUnodes": [16, 12], "GRUdropouts": [1], "number_of_postGRUnodes": [16], "postGRUdropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []}
-                         ]
+              "params": [{"lr": 0.001, "min_lr": 0.0002, "encoding_params": [[16,3]], "encoding_dropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
+                         {"lr": 0.001, "min_lr": 0.0002, "encoding_params": [[16,3]], "encoding_dropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
+                         {"lr": 0.001, "min_lr": 0.0002, "encoding_params": [[16,3]], "encoding_dropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
+                         {"lr": 0.001, "min_lr": 0.0002, "encoding_params": [[16,3]], "encoding_dropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []}
+                         ],
+              "reduceLr_r" : 0
               },
  "VBF":      {"train_signal": ["VBF"],
               "#+preselections": ["n_j >= 2"],
@@ -47,13 +52,14 @@
                                    "Jets_PT_Sub", "Jets_Eta_Sub", "DeltaPhi_mumuj2", "Jets_QGscore_Sub",
                                    "Jets_PT_jj", "Jets_Y_jj", "DeltaPhi_mumujj", "Jets_Minv_jj",
                                    "Event_MET", "noexpand:(Event_Ht-Muons_PT_Lead-Muons_PT_Sub)"],
-              "algorithm": "RNNGRU",
+              "algorithm": "SelfAttention",
               "object_variables": [[3, 4, 5, 6], [7, 8, 9, 10]],
               "other_variables": [0, 1, 2, 11, 12, 13, 14, 15, 16],
-              "params": [{"lr": 0.001, "number_of_GRUnodes": [16, 12], "GRUdropouts": [1], "number_of_postGRUnodes": [16], "postGRUdropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
-                         {"lr": 0.001, "number_of_GRUnodes": [16, 12], "GRUdropouts": [1], "number_of_postGRUnodes": [16], "postGRUdropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
-                         {"lr": 0.001, "number_of_GRUnodes": [16, 12], "GRUdropouts": [1], "number_of_postGRUnodes": [16], "postGRUdropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
-                         {"lr": 0.001, "number_of_GRUnodes": [16, 12], "GRUdropouts": [1], "number_of_postGRUnodes": [16], "postGRUdropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []}
-                         ]
+              "params": [{"lr": 0.001, "min_lr": 0.0002, "encoding_params": [[16,3]], "encoding_dropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
+                         {"lr": 0.001, "min_lr": 0.0002, "encoding_params": [[16,3]], "encoding_dropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
+                         {"lr": 0.001, "min_lr": 0.0002, "encoding_params": [[16,3]], "encoding_dropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
+                         {"lr": 0.001, "min_lr": 0.0002, "encoding_params": [[16,3]], "encoding_dropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []}
+                         ],
+              "reduceLr_r" : 0
               }
 }

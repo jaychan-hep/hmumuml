@@ -13,7 +13,8 @@
                          {"lr": 0.0001},
                          {"lr": 0.0001},
                          {"lr": 0.0001}
-                         ]
+                         ],
+              "reduceLr_r" : 10
               },
  "one_jet":  {"#+preselections": ["n_j == 1"],
               "inputTree": "one_jet",
@@ -23,7 +24,8 @@
                          {"lr": 0.0001},
                          {"lr": 0.0001},
                          {"lr": 0.0001}
-                         ]
+                         ],
+              "reduceLr_r" : 10
               },
  "two_jet":  {"#+preselections": ["n_j >= 2"],
               "inputTree": "two_jet",
@@ -32,13 +34,14 @@
                                    "Jets_PT_jj", "Jets_Y_jj", "DeltaPhi_mumujj", "Jets_Minv_jj",
                                    "Event_MET", "noexpand:(Event_Ht-Muons_PT_Lead-Muons_PT_Sub)"],
               "algorithm": "DeepSets",
-              "jet_variables": [[3, 4, 5, 6], [7, 8, 9, 10]],
+              "object_variables": [[3, 4, 5, 6], [7, 8, 9, 10]],
               "other_variables": [0, 1, 2, 11, 12, 13, 14, 15, 16],
               "params": [{"lr": 0.0005, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
                          {"lr": 0.0005, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
                          {"lr": 0.0005, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
                          {"lr": 0.0005, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []}
-                         ]
+                         ],
+              "reduceLr_r" : 10
               },
  "VBF":      {"train_signal": ["VBF"],
               "#+preselections": ["n_j >= 2"],
@@ -48,12 +51,13 @@
                                    "Jets_PT_jj", "Jets_Y_jj", "DeltaPhi_mumujj", "Jets_Minv_jj",
                                    "Event_MET", "noexpand:(Event_Ht-Muons_PT_Lead-Muons_PT_Sub)"],
               "algorithm": "DeepSets",
-              "jet_variables": [[3, 4, 5, 6], [7, 8, 9, 10]],
+              "object_variables": [[3, 4, 5, 6], [7, 8, 9, 10]],
               "other_variables": [0, 1, 2, 11, 12, 13, 14, 15, 16],
               "params": [{"lr": 0.001, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
                          {"lr": 0.001, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
                          {"lr": 0.001, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []},
                          {"lr": 0.001, "number_of_Phinodes": [16, 16, 16], "Phidropouts": [], "number_of_nodes": [64, 32, 16], "dropouts": []}
-                         ]
+                         ],
+              "reduceLr_r" : 0
               }
 }
