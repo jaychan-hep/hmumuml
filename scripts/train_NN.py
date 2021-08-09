@@ -14,7 +14,7 @@ from tabulate import tabulate
 #from bayes_opt import BayesianOptimization
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-#import logging
+import logging
 from pdb import set_trace
 #logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 #logging.getLogger('matplotlib.font_manager').disabled = True
@@ -25,7 +25,7 @@ import tensorflow as tf
 tf.device('/CPU:0')
 from tensorflow.keras.models import Model
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import BatchNormalization, LayerNormalization
 from tensorflow.keras.layers import AveragePooling2D
 from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import Conv2D
@@ -33,12 +33,13 @@ from tensorflow.keras.layers import Activation
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Input
-from tensorflow.keras.layers import Dense, GRU, TimeDistributed
-from tensorflow.keras.layers import concatenate
-from tensorflow.keras.layers.experimental.preprocessing import Normalization
+from tensorflow.keras.layers import Dense, GRU, TimeDistributed, Attention
+from tensorflow.keras.layers import concatenate, Add
+from tensorflow.keras.layers.experimental.preprocessing import Normalization, Rescaling
 import tensorflow.keras as keras
 from tensorflow.keras import activations
 from tensorflow.keras import backend as K
+import tensorflow_addons as tfa
 
 from sklearn.preprocessing import StandardScaler
 from pickle import dump, load
@@ -124,7 +125,7 @@ class XGBoostHandler(object):
         self.train_background = []
         self.train_variables = []
         self.algorithm = ""
-        self.jet_variables = []
+        self.object_variables = []
         self.other_variables = []
         self.preselections = []
         self.signal_preselections = []
@@ -132,7 +133,11 @@ class XGBoostHandler(object):
         self.randomIndex = 'eventNumber'
         self.weight = 'weight'
         self.params = [{'eval_metric': ['auc', 'logloss']}]
-        self.early_stopping_rounds = 10
+        self.early_stopping_rounds = 20
+        self.reduceLr_c = 3
+        self.reduceLr_r = 0
+        self.reduceLr_f = 0.8
+        self.min_lr = 0.00001
         self.numRound = 10000
         self.SF = 1.
 
@@ -168,7 +173,7 @@ class XGBoostHandler(object):
                 if '+background_preselections' in config.keys():
                     self.background_preselections += config['+background_preselections']
 
-            self._branches = list( set(self.train_variables) | set([p.split()[0] for p in self.preselections]) | set([p.split()[0] for p in self.signal_preselections]) | set([p.split()[0] for p in self.background_preselections]) | set([self.randomIndex, self.weight]))
+            self._branches = list( set(self.train_variables) | set([p.split()[0].replace("(", "") for p in self.preselections]) | set([p.split()[0].replace("(", "") for p in self.signal_preselections]) | set([p.split()[0].replace("(", "") for p in self.background_preselections]) | set([self.randomIndex, self.weight]))
 
             self.train_variables = [x.replace('noexpand:', '') for x in self.train_variables]
             self.preselections = [x.replace('noexpand:', '') for x in self.preselections]
@@ -176,13 +181,6 @@ class XGBoostHandler(object):
             self.background_preselections = [x.replace('noexpand:', '') for x in self.background_preselections]
             self.randomIndex = self.randomIndex.replace('noexpand:', '')
             self.weight = self.weight.replace('noexpand:', '')
-
-            if self.preselections:
-                self.preselections = ['data.' + p for p in self.preselections]
-            if self.signal_preselections:
-                self.signal_preselections = ['data.' + p for p in self.signal_preselections]
-            if self.background_preselections:
-                self.background_preselections = ['data.' + p for p in self.background_preselections]
 
         except Exception as e:
             logging.error("Error reading configuration '{config}'".format(config=configPath))
@@ -215,12 +213,12 @@ class XGBoostHandler(object):
 
         if sample == 'signal':
             for p in self.signal_preselections:
-                data = data[eval(p)]
+                data.query(p, inplace=True)
         elif sample == 'background':
             for p in self.background_preselections:
-                data = data[eval(p)]
+                data.query(p, inplace=True)
         for p in self.preselections:
-            data = data[eval(p)]
+            data.query(p, inplace=True)
 
         return data
 
@@ -313,19 +311,34 @@ class XGBoostHandler(object):
         self.m_y_test[fold]  = np.concatenate((np.ones(len(test_sig)  , dtype=np.uint8), np.zeros(len(test_bkg)  , dtype=np.uint8)))
 
         #extract jet and other particles
-        if self.algorithm in ["RNNGRU", "DeepSets"]:
-            self.m_x_train[fold] = self.format_twojet_inputs(self.m_x_train[fold])
-            self.m_x_val[fold] = self.format_twojet_inputs(self.m_x_val[fold])
-            self.m_x_test[fold] = self.format_twojet_inputs(self.m_x_test[fold])
+        if self.algorithm in ["RNNGRU", "DeepSets", "SelfAttention"]:
 
-            self.m_x_test_sig[fold] = self.format_twojet_inputs(self.m_x_test_sig[fold])
-            self.m_x_test_bkg[fold] = self.format_twojet_inputs(self.m_x_test_bkg[fold])
+            def format_object_inputs(x):
+                x_object = x[:, self.object_variables]
+                x_others = x[:, self.other_variables]
+                return [x_object, x_others]
 
-    def format_twojet_inputs(self, x):
+            self.m_x_train[fold] = format_object_inputs(self.m_x_train[fold])
+            self.m_x_val[fold] = format_object_inputs(self.m_x_val[fold])
+            self.m_x_test[fold] = format_object_inputs(self.m_x_test[fold])
 
-        x_jets = x[:, self.jet_variables]
-        x_others = x[:, self.other_variables]
-        return [x_jets, x_others]
+            self.m_x_test_sig[fold] = format_object_inputs(self.m_x_test_sig[fold])
+            self.m_x_test_bkg[fold] = format_object_inputs(self.m_x_test_bkg[fold])
+
+    def shuffleData(self, fold=0):
+
+        def custom_shuffle(a, b, c):
+            permutation = np.random.permutation(b.shape[0])
+            if not isinstance(a, list):
+                shuffled_a = a[permutation]
+            else:
+                shuffled_a = [a_[permutation] for a_ in a]
+            shuffled_b = b[permutation]
+            shuffled_c = c[permutation]
+            return shuffled_a, shuffled_b, shuffled_c
+
+        self.m_x_train[fold], self.m_y_train[fold], self.m_train_wt[fold] = custom_shuffle(self.m_x_train[fold], self.m_y_train[fold], self.m_train_wt[fold])
+        self.m_x_val[fold], self.m_y_val[fold], self.m_val_wt[fold] = custom_shuffle(self.m_x_val[fold], self.m_y_val[fold], self.m_val_wt[fold])
 
     def AddMetric(self, metric):
 
@@ -340,6 +353,8 @@ class XGBoostHandler(object):
             self.buildRNNGRU(fold, param)
         elif self.algorithm == "DeepSets":
             self.buildDeepSets(fold, param)
+        elif self.algorithm == "SelfAttention":
+            self.buildSelfAttention(fold, param)
 
     def buildNN(self, fold, param=None):
 
@@ -362,11 +377,14 @@ class XGBoostHandler(object):
         self.m_model[fold].add(Input(shape=(input_shape,)))
         self.m_model[fold].add(normalizer)
 
-        number_of_nodes = param.get("number_of_nodes", (64, 32, 16, 8))
+        number_of_nodes = param.get("number_of_nodes", [64, 32, 16, 8])
         dropouts = param.get("dropouts", [1])
 
         for i, nodes in enumerate(number_of_nodes):
             self.m_model[fold].add(Dense(units=nodes, activation='relu'))
+            # self.m_model[fold].add(Dense(units=nodes))
+            self.m_model[fold].add(BatchNormalization())
+            # self.m_model[fold].add(Activation(activations.relu))
             if i in dropouts:
                 self.m_model[fold].add(Dropout(0.1))
         self.m_model[fold].add(Dense(units=1, activation='sigmoid'))
@@ -375,6 +393,80 @@ class XGBoostHandler(object):
               optimizer=tf.keras.optimizers.Adam(param.get("lr", 0.001)),
               # optimizer=keras.optimizers.SGD(learning_rate=param.get("lr", 0.001), momentum=param.get("momentum", 0.9), nesterov=True),
               weighted_metrics=[self.m_metrics["auc"]])
+      
+        self.m_model[fold].summary()
+
+    def buildSelfAttention(self, fold, param=None):
+
+        if not param:
+            print('XGB INFO: Setting the hyperparameters...')
+            param = self.params[0 if len(self.params) == 1 else fold]
+        print('param: ', param)
+
+        print('XGB INFO: Building neural network architecture...')
+
+        if not "auc" in self.m_metrics:
+            self.AddMetric("auc")
+
+        jets_input = tf.keras.Input(shape=(self.m_x_train[fold][0].shape[-2], self.m_x_train[fold][0].shape[-1]), dtype=tf.dtypes.float32)
+        others_input = tf.keras.Input(shape=(self.m_x_train[fold][1].shape[1],), dtype=tf.dtypes.float32)
+
+        normalizer_jet = Normalization()
+        normalizer_jet.adapt(self.m_x_train[fold][0])
+
+        normalizer_others = Normalization()
+        normalizer_others.adapt(self.m_x_train[fold][1])
+
+        m_jets = normalizer_jet(jets_input)
+
+        encoding_params = param.get("encoding_params", [[16,3]])
+        encoding_dropouts = param.get("encoding_dropouts", [])
+        for i, encoding_param in enumerate(encoding_params):
+            nodes = encoding_param[0]
+            dense_layers = encoding_param[1]
+            for j in range(dense_layers):
+                m_jets = TimeDistributed(Dense(nodes, activation='relu'))(m_jets)
+                m_jets = TimeDistributed(BatchNormalization())(m_jets)
+            m_jets_query = TimeDistributed(Dense(nodes))(m_jets)
+            m_jets_key = TimeDistributed(Dense(nodes))(m_jets)
+            m_jets_value = TimeDistributed(Dense(nodes))(m_jets)
+            m_jets_attention = Attention()([m_jets_query, m_jets_value, m_jets_key])
+            m_jets = Add()([m_jets, m_jets_attention])
+            m_jets = TimeDistributed(LayerNormalization())(m_jets)
+            m_jets_dense = m_jets
+            for j in range(dense_layers):
+                m_jets_dense = TimeDistributed(Dense(nodes, activation='relu'))(m_jets_dense)
+                m_jets_dense = TimeDistributed(BatchNormalization())(m_jets_dense)
+            m_jets = Add()([m_jets, m_jets_dense])
+            m_jets = TimeDistributed(LayerNormalization())(m_jets)
+            if i in encoding_dropouts:
+                m_jets = TimeDistributed(Dropout(0.1))(m_jets)
+
+        m_jets = K.sum(m_jets, axis=1)
+        # m_jets = Rescaling(1./self.m_x_train[fold][0].shape[-2])(m_jets)
+
+        m = concatenate([m_jets, normalizer_others(others_input)])
+
+        number_of_nodes = param.get("number_of_nodes", [64, 32, 16])
+        dropouts = param.get("dropouts", [])
+
+        for i, nodes in enumerate(number_of_nodes):
+            # m = Dense(nodes, activation='relu')(m)
+            m = Dense(nodes)(m)
+            m = BatchNormalization()(m)
+            m = Activation(activations.relu)(m)
+            if i in dropouts:
+                m = Dropout(0.1)(m)
+
+        output = Dense(1, activation="sigmoid")(m)
+
+        self.m_model[fold] = Model(inputs=[jets_input, others_input], outputs=output)
+
+        self.m_model[fold].compile(loss=keras.losses.BinaryCrossentropy(),
+              optimizer=tfa.optimizers.RectifiedAdam(learning_rate=param.get("lr", 0.001), total_steps=3000000, warmup_proportion=0.1, min_lr=param.get("min_lr", 0.0002)),
+              # optimizer=tf.keras.optimizers.Adam(param.get("lr", 0.001)),
+              # optimizer=keras.optimizers.SGD(learning_rate=param.get("lr", 0.001), momentum=param.get("momentum", 0.9), nesterov=True),
+              weighted_metrics=[self.m_metrics["auc"]]) # 'accuracy'
       
         self.m_model[fold].summary()
 
@@ -410,6 +502,7 @@ class XGBoostHandler(object):
                 m_jets = TimeDistributed(Dropout(0.1))(m_jets)
 
         m_jets = K.sum(m_jets, axis=1)
+        # m_jets = BatchNormalization()(m_jets)
 
         m = concatenate([m_jets, normalizer_others(others_input)])
 
@@ -506,7 +599,13 @@ class XGBoostHandler(object):
 
         # finally start training!!!
         print('XGB INFO: Start training!!!')
-        callback = keras.callbacks.EarlyStopping(monitor='val_auc', patience=self.early_stopping_rounds, restore_best_weights=True, mode='max')
+        callbacks = []
+        if self.early_stopping_rounds:
+            earlyStop = keras.callbacks.EarlyStopping(monitor='val_auc', patience=self.early_stopping_rounds, restore_best_weights=True, mode='max')
+            callbacks.append(earlyStop)
+        if self.reduceLr_r:
+            reduceLr = keras.callbacks.ReduceLROnPlateau(monitor="val_auc", factor=self.reduceLr_f, patience=self.reduceLr_r, verbose=1, mode="max", cooldown=self.reduceLr_c, min_lr=self.min_lr)
+            callbacks.append(reduceLr)
         try:
             self.m_model[fold].fit(self.m_x_train[fold],
                 self.m_y_train[fold],
@@ -514,7 +613,7 @@ class XGBoostHandler(object):
                 batch_size=param.get("Bs", 64),
                 sample_weight=self.m_train_wt[fold],
                 validation_data=(self.m_x_val[fold], self.m_y_val[fold], self.m_val_wt[fold]),
-                callbacks=[callback]
+                callbacks=callbacks,
             )
         except KeyboardInterrupt:
             print('Finishing on SIGINT.')
@@ -564,7 +663,7 @@ class XGBoostHandler(object):
 
         return
 
-    def plotROC(self, fold=0, save=True, show=False):
+    def plotROC(self, fold=0, save=True, show=False, outdir='plots/roc_curve'):
     
         fpr_train, tpr_train, _ = roc_curve(self.m_y_train[fold], self.m_score_train[fold], sample_weight=self.m_train_wt[fold])
         tpr_train, fpr_train = np.array(list(zip(*sorted(zip(tpr_train, fpr_train)))))
@@ -597,9 +696,9 @@ class XGBoostHandler(object):
 
         if save:
             # create output directory
-            os.makedirs('plots/roc_curve', exist_ok=True)
+            os.makedirs(outdir, exist_ok=True)
             # save figure
-            plt.savefig('plots/roc_curve/NN_%s_%d.pdf' % (self._region, fold))
+            plt.savefig(f'{outdir}/NN_{self._region}_{fold}.pdf')
 
         if show: plt.show()
 
@@ -634,17 +733,19 @@ class XGBoostHandler(object):
         #plt.hist(score_test_sig_t, bins='auto')
         #plt.show()
 
-    def save(self, fold=0):
+    def save(self, fold=0, outdir=None):
 
         # create output directory
-        os.makedirs(self._outputFolder, exist_ok=True)
+        if not outdir:
+            outdir = self._outputFolder
+        os.makedirs(outdir, exist_ok=True)
 
         # save BDT model
-        if fold in self.m_model.keys(): self.m_model[fold].save('%s/NN_%s_%d.tf' % (self._outputFolder, self._region, fold))
+        if fold in self.m_model.keys(): self.m_model[fold].save(f'{outdir}/NN_{self._region}_{fold}.tf')
 
         # save score transformer
         if fold in self.m_tsf.keys(): 
-            with open('%s/tsf_%s_%d.pkl' %(self._outputFolder, self._region, fold), 'wb') as f:
+            with open(f'{outdir}/tsf_{self._region}_{fold}.pkl', 'wb') as f:
                 pickle.dump(self.m_tsf[fold], f, -1)
 
     def skoptHP(self, fold):
@@ -696,7 +797,7 @@ class XGBoostHandler(object):
                     acq_optimizer_kwargs={'n_jobs':4})
 
         n_calls = 100
-        exp_dir = 'models/skopt/'
+        exp_dir = 'models/skopt'
         os.makedirs(exp_dir, exist_ok=True)
 
         best_AUC = 0
@@ -710,16 +811,15 @@ class XGBoostHandler(object):
             print ('AUC:', f_val)
             if f_val > best_AUC:
                 best_AUC = f_val
-                self.plotROC(fold)
+                self.plotROC(fold, outdir=f'{exp_dir}/roc_curve')
                 self.transformScore(fold)
-                self.save(fold)
+                self.save(fold, outdir=f'{exp_dir}/best_models')
             opt_result = opt.tell(sampled_point, -f_val)
 
-            with open(exp_dir + 'optimizer_region_'+self._region+'_fold'+str(fold) + '.pkl', 'wb') as fp:
-                
+            with open(f'{exp_dir}/optimizer_region_{self._region}_fold{fold}.pkl', 'wb') as fp:
                 dump(opt, fp)
 
-            with open(exp_dir + 'results_region_'+self._region+'_fold'+str(fold) + '.pkl', 'wb') as fp:
+            with open(f'{exp_dir}/results_region_{self._region}_fold{fold}.pkl', 'wb') as fp:
                 # Delete objective function before saving. To be used when results have been loaded,
                 # the objective function must then be imported from this script.
 
@@ -736,10 +836,10 @@ class XGBoostHandler(object):
 
                     dump(opt_result, fp)
 
-        with open(exp_dir + 'results_region_'+self._region+'_fold'+str(fold) + '.json', 'w') as fp:
+        with open(f'{exp_dir}/results_region_{self._region}_fold{fold}.json', 'wb') as fp:
 
             json.dump(dict(zip(search_names, opt_result.x)), fp)
-            print('Save to ', exp_dir + 'results_region_'+self._region+'_fold'+str(fold) + '.json')
+            print(f'XGB INFO: Saved to: {exp_dir}/results_region_{self._region}_fold{fold}.json')
 
 
     def skoptPlot(self, fold):
@@ -830,6 +930,8 @@ def main():
         xgb.set_early_stopping_rounds(20)
 
         xgb.prepareData(i)
+
+        # xgb.shuffleData(i)
 
         if args.skopt: 
             try:
