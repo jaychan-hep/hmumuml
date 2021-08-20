@@ -135,16 +135,28 @@ class pyTH1(object):
 
 class categorizer(object):
 
-    def __init__(self, h_sig, h_bkg):
+    def __init__(self, h_sig, h_bkg, h_bkg_rw_num=None, h_bkg_rw_den=None):
 
         assert isinstance(h_sig, TH1), 'h_sig==ROOT.TH1'
         assert isinstance(h_bkg, TH1), 'h_bkg==ROOT.TH1'
         assert h_sig.GetSize() == h_bkg.GetSize(), 'h_sig and h_bkg have different sizes'
         assert h_sig.GetBinLowEdge(1) == h_bkg.GetBinLowEdge(1), 'h_sig and h_bkg have different edges'
         assert h_sig.GetBinWidth(1) == h_bkg.GetBinWidth(1), 'h_sig and h_bkg have different bin widths'
+        self.reweight = False
+        if h_bkg_rw_num and h_bkg_rw_den:
+            self.reweight = True
+            assert h_sig.GetSize() == h_bkg_rw_num.GetSize(), 'h_sig and h_bkg have different sizes'
+            assert h_sig.GetBinLowEdge(1) == h_bkg_rw_num.GetBinLowEdge(1), 'h_sig and h_bkg have different edges'
+            assert h_sig.GetBinWidth(1) == h_bkg_rw_num.GetBinWidth(1), 'h_sig and h_bkg have different bin widths'
+            assert h_sig.GetSize() == h_bkg_rw_den.GetSize(), 'h_sig and h_bkg have different sizes'
+            assert h_sig.GetBinLowEdge(1) == h_bkg_rw_den.GetBinLowEdge(1), 'h_sig and h_bkg have different edges'
+            assert h_sig.GetBinWidth(1) == h_bkg_rw_den.GetBinWidth(1), 'h_sig and h_bkg have different bin widths'
 
         self.h_sig = pyTH1(h_sig)
         self.h_bkg = pyTH1(h_bkg)
+        if self.reweight:
+            self.h_bkg_rw_num = pyTH1(h_bkg_rw_num)
+            self.h_bkg_rw_den = pyTH1(h_bkg_rw_den)
 
     def smooth(self, bl, br, SorB='B', function='Epoly2'):
 
@@ -191,6 +203,9 @@ class categorizer(object):
 
             nsig, dsig = self.h_sig.IntegralAndError(bl, br)
             nbkg, dbkg = self.h_bkg.IntegralAndError(bl, br)
+            if self.reweight and nbkg != 0:
+                if self.h_bkg_rw_den.Integral(bl, br) == 0: print("what!!!", bl, br)
+                nbkg, dbkg = nbkg*self.h_bkg_rw_num.Integral(bl, br)/self.h_bkg_rw_den.Integral(bl, br), dbkg*self.h_bkg_rw_num.Integral(bl, br)/self.h_bkg_rw_den.Integral(bl, br)
 
             if nbkg < minN: return -1, -1
 
