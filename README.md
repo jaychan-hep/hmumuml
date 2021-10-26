@@ -4,9 +4,9 @@ HmumuML is a package that can be used to study the XGBoost BDT categorization in
 
 ## Setup
 
-This project requires to use python3 and the conda environment. Please install the Anaconda or Miniconda before setting up the environment for this project.
+This project requires to use python3 and either conda or virtual environment. If you want to use a conda environment, install Anaconda or Miniconda before setting up.
 
-### First time setup on lxplus
+### First time setup on lxplus for a conda environment
 
 First checkout the code:
 
@@ -19,6 +19,13 @@ Then,
 
 ```
 source scripts/install.sh
+```
+### First time setup on lxplus for a virtual environment
+After cloning the repository, under HmumuML:
+```
+virtualenv hmumuml --python=python3
+source hmumuml/bin/activate
+pip install -r requirements.txt
 ```
 
 ### Normal setup on lxplus
