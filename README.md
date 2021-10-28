@@ -20,13 +20,6 @@ Then,
 ```
 source scripts/install.sh
 ```
-### First time setup on lxplus for a virtual environment
-After cloning the repository, under HmumuML:
-```
-virtualenv hmumuml --python=python3
-source hmumuml/bin/activate
-pip install -r requirements.txt
-```
 
 ### Normal setup on lxplus
 
