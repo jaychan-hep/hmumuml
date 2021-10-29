@@ -1,16 +1,9 @@
-# create environment from the `environment.yml`
-conda env create -f environment.yml
-conda activate hmumuml
-
-# create virtual environment
-#conda create -n hmumuml python=3.7 # --clone base
-#conda activate hmumuml
-
-# install packages
-#conda config --add channels conda-forge
-#conda config --add channels anaconda
-#conda install root root_numpy
-#conda install h5py scikit-learn matplotlib tabulate xgboost pandas root_pandas tqdm
+# include ROOT
+source /cvmfs/sft.cern.ch/lcg/app/releases/ROOT/6.24.02/x86_64-centos7-gcc48-opt/bin/thisroot.sh
+python3 -m venv hmumumlenv
+source hmumumlenv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
 
 # setting python path
 export PATH="`pwd`/scripts:${PATH}"
